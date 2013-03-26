@@ -1,0 +1,3 @@
+#!/usr/bin/env ruby
+
+`cp #{ARGV[ARGV.index('-i') + 1]} #{ARGV.last}`
