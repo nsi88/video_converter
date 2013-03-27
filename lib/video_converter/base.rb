@@ -2,7 +2,7 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :profile, :one_pass, :type, :paral, :debug
+    attr_accessor :input, :profile, :one_pass, :type, :paral, :debug, :verbose, :log
 
     def initialize params
       [:input, :profile].each do |needed_param|
@@ -12,9 +12,12 @@ module VideoConverter
       self.type = params[:type].nil? ? VideoConverter.type : params[:type].to_sym
       self.paral = params[:paral].nil? ? VideoConverter.paral : params[:paral]
       self.debug = params[:debug].nil? ? VideoConverter.debug : params[:debug]
+      self.verbose = params[:verbose].nil? ? VideoConverter.verbose : params[:verbose]
+      self.log = params[:log].nil? ? '/dev/null' : params[:log]
       raise ArgumentError.new("Incorrect type #{params[:type]}. Should one of mp4, hls") unless [:mp4, :hls].include?(type)
       require 'fileutils'
       [profile].flatten.each{|p| FileUtils.mkdir_p File.dirname(p.to_hash[:output])}
+      FileUtils.mkdir_p File.dirname(log) unless log == '/dev/null'
     end
 
     def run
@@ -50,7 +53,7 @@ module VideoConverter
     end
 
     def prepare_command command, profile
-      res = command.gsub('%{bin}', VideoConverter::Ffmpeg.bin).gsub('%{input}', input)
+      res = command.gsub('%{bin}', VideoConverter::Ffmpeg.bin).gsub('%{input}', input).gsub('%{log}', log)
       profile.to_hash.each do |param, value|
         res.gsub! "%{#{param}}", value.to_s
       end
@@ -58,8 +61,12 @@ module VideoConverter
     end
 
     def execute command
-      puts command
-      `#{command}` unless debug
+      puts command if verbose
+      if debug
+        true
+      else
+        system command
+      end
     end
 
   end
