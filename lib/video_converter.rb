@@ -5,11 +5,12 @@ require "video_converter/base"
 
 module VideoConverter
   class << self
-    attr_accessor :one_pass, :type, :debug
+    attr_accessor :one_pass, :type, :paral, :debug
   end
   
   self.one_pass = false
   self.type = :mp4
+  self.paral = true
   self.debug = false
 
   def self.run params

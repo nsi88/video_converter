@@ -2,21 +2,23 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :profile, :one_pass, :type, :debug
+    attr_accessor :input, :profile, :one_pass, :type, :paral, :debug
 
     def initialize params
       [:input, :profile].each do |needed_param|
         self.send("#{needed_param}=", params[needed_param]) or raise ArgumentError.new("#{needed_param} is needed")
       end
-      self.one_pass = params[:one_pass] || VideoConverter.one_pass
-      self.type = params[:type] ? params[:type].to_sym : VideoConverter.type
-      self.debug = params[:debug] || VideoConverter.debug
+      self.one_pass = params[:one_pass].nil? ? VideoConverter.one_pass : params[:one_pass]
+      self.type = params[:type].nil? ? VideoConverter.type : params[:type].to_sym
+      self.paral = params[:paral].nil? ? VideoConverter.paral : params[:paral]
+      self.debug = params[:debug].nil? ? VideoConverter.debug : params[:debug]
       raise ArgumentError.new("Incorrect type #{params[:type]}. Should one of mp4, hls") unless [:mp4, :hls].include?(type)
       require 'fileutils'
       [profile].flatten.each{|p| FileUtils.mkdir_p File.dirname(p.to_hash[:output])}
     end
 
     def run
+      threads = []
       groups.each do |qualities|
         unless one_pass
           group_command = prepare_command VideoConverter::Ffmpeg.first_pass_command, qualities.first
@@ -28,9 +30,14 @@ module VideoConverter
           else
             quality_command = prepare_command VideoConverter::Ffmpeg.second_pass_command, quality
           end
-          execute quality_command
+          if paral
+            threads << Thread.new { execute quality_command }
+          else
+            execute quality_command
+          end
         end
       end
+      threads.each { |t| t.join } if paral
     end
 
     private
