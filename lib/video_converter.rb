@@ -3,6 +3,7 @@ require "video_converter/ffmpeg"
 require "video_converter/profile"
 require "video_converter/base"
 require "video_converter/process"
+require "video_converter/live_segmenter"
 
 module VideoConverter
   class << self

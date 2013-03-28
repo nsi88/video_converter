@@ -16,7 +16,6 @@ module VideoConverter
         raise ArgumentError.new("#{needed_param} is needed") unless params[needed_param]
       end
       self.params = self.class.default_params.merge params
-      self.params[:output] = self.params[:output].sub(/\.\w+$/, '') + '.mp4'
     end
 
     def to_hash
