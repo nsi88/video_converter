@@ -2,6 +2,7 @@ require "video_converter/version"
 require "video_converter/ffmpeg"
 require "video_converter/profile"
 require "video_converter/base"
+require "video_converter/process"
 
 module VideoConverter
   class << self
@@ -14,7 +15,11 @@ module VideoConverter
   self.debug = false
   self.verbose = true
 
-  def self.run params
-    VideoConverter::Base.new(params).run
+  def self.new params
+    VideoConverter::Base.new params
+  end
+
+  def self.find id
+    VideoConverter::Process.new id
   end
 end

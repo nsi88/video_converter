@@ -2,7 +2,7 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :profile, :one_pass, :type, :paral, :debug, :verbose, :log
+    attr_accessor :input, :profile, :one_pass, :type, :paral, :debug, :verbose, :log, :id
 
     def initialize params
       [:input, :profile].each do |needed_param|
@@ -18,14 +18,35 @@ module VideoConverter
       require 'fileutils'
       [profile].flatten.each{|p| FileUtils.mkdir_p File.dirname(p.to_hash[:output])}
       FileUtils.mkdir_p File.dirname(log) unless log == '/dev/null'
+      self.id = object_id
     end
 
     def run
+      process = VideoConverter::Process.new(id)
+      process.pid = `cat /proc/self/stat`.split[3]
+      [:convert].each do |action|
+        process.status = action.to_s
+        process.progress = 0
+        res = send action
+        if res
+          process.status = "#{action}_success"
+        else
+          process.status = "#{action}_error"
+          return false
+        end
+      end
+      true
+    end
+
+    private
+
+    def convert
+      res = true
       threads = []
       groups.each do |qualities|
         unless one_pass
           group_command = prepare_command VideoConverter::Ffmpeg.first_pass_command, qualities.first
-          execute group_command
+          res &&= execute group_command
         end
         qualities.each do |quality|
           if one_pass
@@ -34,16 +55,15 @@ module VideoConverter
             quality_command = prepare_command VideoConverter::Ffmpeg.second_pass_command, quality
           end
           if paral
-            threads << Thread.new { execute quality_command }
+            threads << Thread.new { res &&= execute quality_command }
           else
-            execute quality_command
+            res &&= execute quality_command
           end
         end
       end
       threads.each { |t| t.join } if paral
+      res
     end
-
-    private
 
     def groups
       groups = profile.is_a?(Array) ? profile : [profile]
