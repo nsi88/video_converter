@@ -27,7 +27,7 @@ module VideoConverter
     def run
       res = true
       threads = []
-      groups.each do |qualities|
+      Profile.groups(profile).each do |qualities|
         unless one_pass
           group_command = Command.new self.class.first_pass_command, common_params.merge(qualities.first.to_hash)
           res &&= group_command.execute
@@ -50,13 +50,6 @@ module VideoConverter
     end
 
     private 
-
-    def groups
-      groups = profile.is_a?(Array) ? profile : [profile]
-      groups.map do |qualities|
-        qualities.is_a?(Array) ? qualities : [qualities]
-      end
-    end
 
     def common_params
       { :bin => self.class.bin, :input => input, :log => log }

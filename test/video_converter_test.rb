@@ -49,6 +49,25 @@ class VideoConverterTest < Test::Unit::TestCase
           assert File.exists?(File.join(profile.to_hash[:output_dir], 's-00001.ts'))
         end
       end
+      should 'create quality playlists' do
+        @profiles.each do |profile|
+          assert File.exists?(File.join(File.dirname(profile.to_hash[:output_dir]), File.basename(profile.to_hash[:output_dir]) + '.m3u8'))
+        end
+      end
+      should 'create group playlists' do
+        playlist1 = File.join('tmp', 'playlist1.m3u8')
+        playlist2 = File.join('tmp', 'playlist2.m3u8')
+        assert File.exists? playlist1
+        assert File.exists? playlist2
+        assert File.read(playlist1).include?('test11')
+        assert File.read(playlist1).include?('test12')
+        assert !File.read(playlist1).include?('test21')
+        assert !File.read(playlist1).include?('test22')
+        assert File.read(playlist2).include?('test21')
+        assert File.read(playlist2).include?('test22')
+        assert !File.read(playlist2).include?('test11')
+        assert !File.read(playlist2).include?('test12')
+      end
     end
   end
 end

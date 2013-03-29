@@ -48,6 +48,7 @@ module VideoConverter
           res &&= p.call(profile)
         end
       end
+      gen_group_playlists
     end
 
     private
@@ -71,6 +72,18 @@ module VideoConverter
       end
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
       File.open(File.join(playlist_dir, playlist_name), 'w') { |f| f.write res }
+    end
+
+    def gen_group_playlists
+      Profile.groups(profile).each_with_index do |group, index|
+        res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD"
+        group.sort { |g1, g2| g1.to_hash[:bandwidth] <=> g2.to_hash[:bandwidth] }.each do |quality|
+          res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{quality.to_hash[:bandwidth] * 1000}\n"
+          res += File.join(chunk_base, playlist_dir, File.basename(quality.to_hash[:output_dir]) + '.m3u8')
+        end
+        res += "#EXT-X-ENDLIST"
+        File.open(File.join(playlist_dir, "playlist#{index + 1}.m3u8"), 'w') { |f| f.write res }
+      end
     end
 
     def common_params

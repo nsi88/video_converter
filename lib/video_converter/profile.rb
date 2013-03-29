@@ -20,10 +20,18 @@ module VideoConverter
       self.params[:output_dir] = params[:output_dir] || File.dirname(params[:output_file])
       self.params[:output_file] = params[:output_file] || File.join(params[:output_dir], "#{object_id}.mp4")
       FileUtils.mkdir_p self.params[:output_dir]
+      self.params[:bandwidth] = params[:bandwidth] || params[:bitrate]
     end
 
     def to_hash
       params
+    end
+
+    def self.groups profiles
+      groups = profiles.is_a?(Array) ? profiles : [profiles]
+      groups.map do |qualities|
+        qualities.is_a?(Array) ? qualities : [qualities]
+      end
     end
   end
 end
