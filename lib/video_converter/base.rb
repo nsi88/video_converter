@@ -16,7 +16,12 @@ module VideoConverter
       end
       self.one_pass = params[:one_pass].nil? ? Ffmpeg.one_pass : params[:one_pass]
       self.paral = params[:paral].nil? ? VideoConverter.paral : params[:paral]
-      self.log = params[:log].nil? ? '/dev/null' : params[:log]
+      if params[:log].nil?
+        self.log = '/dev/null'
+      else
+        self.log = params[:log]
+        FileUtils.mkdir_p File.dirname(log)
+      end
       self.id = object_id
       self.chunk_base = params[:chunk_base]
     end
@@ -51,7 +56,11 @@ module VideoConverter
     end
 
     def live_segment
-      LiveSegmenter.new(:profile => profile, :playlist_dir => playlist_dir, :paral => paral, :chunk_base => chunk_base).run
+      params = {}
+      [:profile, :playlist_dir, :paral, :chunk_base, :log].each do |param|
+        params[param] = self.send(param)
+      end
+      LiveSegmenter.new(params).run
     end
   end
 end

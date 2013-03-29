@@ -18,9 +18,9 @@ module VideoConverter
 
     self.delete_input = true
 
-    self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{output_dir} %{filename_prefix} %{encoding_profile}'
+    self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{output_dir} %{filename_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
-    attr_accessor :profile, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input, :chunk_base
+    attr_accessor :profile, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input, :chunk_base, :log
 
     def initialize params
       [:profile, :playlist_dir].each do |param|
@@ -31,6 +31,7 @@ module VideoConverter
       end
       self.chunk_base = params[:chunk_base] ? params[:chunk_base] : '.'
       self.chunk_base += '/' unless chunk_base.end_with?('/')
+      self.log = params[:log]
     end
 
     def run
@@ -87,7 +88,7 @@ module VideoConverter
     end
 
     def common_params
-      { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin }
+      { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin, :log => log }
     end
 
     def chunk_duration chunk
