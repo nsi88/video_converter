@@ -3,10 +3,12 @@
 module VideoConverter
   class LiveSegmenter
     class << self
-      attr_accessor :bin, :chunks_command, :segment_length, :filename_prefix, :encoding_profile, :delete_input
+      attr_accessor :bin, :ffprobe_bin, :chunks_command, :segment_length, :filename_prefix, :encoding_profile, :delete_input
     end
     
     self.bin = '/usr/local/bin/live_segmenter'
+
+    self.ffprobe_bin = '/usr/local/bin/ffprobe'
 
     self.segment_length = 10
 
@@ -18,34 +20,34 @@ module VideoConverter
 
     self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{output_dir} %{filename_prefix} %{encoding_profile}'
 
-    attr_accessor :files, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input
+    attr_accessor :profile, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input, :chunk_base
 
     def initialize params
-      [:files, :playlist_dir].each do |param|
+      [:profile, :playlist_dir].each do |param|
         self.send("#{param}=", params[param])
       end
-      self.files = [files] if files.is_a? String
-      if files.is_a? Array
-        self.files = Hash[*files.map { |file| [file, file.sub(Regexp.new(File.extname(file) + '$'), '')] }.flatten]
-      end
-      files.values.each { |output_dir| FileUtils.mkdir_p output_dir }
-      
       [:segment_length, :filename_prefix, :encoding_profile, :delete_input].each do |param|
-        self.send("#{param}=", params[param] || self.class.send(param))
+        self.send("#{param}=", params[param].nil? ? self.class.send(param) : params[param])
       end
+      self.chunk_base = params[:chunk_base] ? params[:chunk_base] : '.'
+      self.chunk_base += '/' unless chunk_base.end_with?('/')
     end
 
     def run
       res = true
       threads = []
-      files.each do |input, output|
+      p = Proc.new do |profile|
+        input = profile.to_hash[:output_file]
+        output = profile.to_hash[:output_dir]
+        make_chunks(input, output) && gen_quality_playlist(output, "#{File.basename(output)}.m3u8")
+      end
+      [profile].flatten.each do |profile|
         if paral
-          threads << Thread.new { res &&= make_chunks(input, output) }
+          threads << Thread.new { res &&= p.call(profile) }
         else
-          res &&= make_chunks(input, output)
+          res &&= p.call(profile)
         end
       end
-      res
     end
 
     private
@@ -59,8 +61,24 @@ module VideoConverter
       res
     end
 
+    def gen_quality_playlist chunks_dir, playlist_name
+      res = ''
+      durations = []
+      Dir::glob(File.join(chunks_dir, 's-*[0-9].ts')).each do |chunk|
+        durations << (duration = chunk_duration chunk)
+        res += "#EXTINF:#%0.2f\n" % duration
+        res += "#{chunk_base}#{File.basename(chunks_dir)}/#{File.basename(chunk)}\n"
+      end
+      res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
+      File.open(File.join(playlist_dir, playlist_name), 'w') { |f| f.write res }
+    end
+
     def common_params
       { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin }
+    end
+
+    def chunk_duration chunk
+      s = `#{self.class.ffprobe_bin} #{chunk} 2>&1`.match(/Duration:.*(?:[0-9]{2}):(?:[0-9]{2}):([0-9]{2}(?:\.[0-9]{2})?)/).to_a[1].to_f
     end
   end
 end

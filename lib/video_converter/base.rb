@@ -2,7 +2,7 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :profile, :one_pass, :type, :paral, :log, :id, :playlist_dir
+    attr_accessor :input, :profile, :one_pass, :type, :paral, :log, :id, :playlist_dir, :chunk_base
 
     def initialize params
       [:input, :profile].each do |needed_param|
@@ -18,6 +18,7 @@ module VideoConverter
       self.paral = params[:paral].nil? ? VideoConverter.paral : params[:paral]
       self.log = params[:log].nil? ? '/dev/null' : params[:log]
       self.id = object_id
+      self.chunk_base = params[:chunk_base]
     end
 
     def run
@@ -50,7 +51,7 @@ module VideoConverter
     end
 
     def live_segment
-      LiveSegmenter.new(:files => Hash[*[profile].flatten.map { |profile| [profile.to_hash[:output_file], profile.to_hash[:output_dir]] }.flatten], :playlist_dir => playlist_dir, :paral => paral).run
+      LiveSegmenter.new(:profile => profile, :playlist_dir => playlist_dir, :paral => paral, :chunk_base => chunk_base).run
     end
   end
 end
