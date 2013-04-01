@@ -9,11 +9,12 @@ require "fileutils"
 
 module VideoConverter
   class << self
-    attr_accessor :type, :paral
+    attr_accessor :type, :paral, :no_convert
   end
   
   self.type = :mp4
   self.paral = true
+  self.no_convert = false
 
   def self.new params
     VideoConverter::Base.new params

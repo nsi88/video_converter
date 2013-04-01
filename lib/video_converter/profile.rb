@@ -16,10 +16,10 @@ module VideoConverter
         raise ArgumentError.new("#{needed_param} is needed") unless params[needed_param]
       end
       self.params = self.class.default_params.merge params
-      raise ArgumentError.new("Output file or output dir is needed") unless params[:output_file] || params[:output_dir]
-      self.params[:output_dir] = params[:output_dir] || File.dirname(params[:output_file])
-      self.params[:output_file] = params[:output_file] || File.join(params[:output_dir], "#{object_id}.mp4")
-      FileUtils.mkdir_p self.params[:output_dir]
+      raise ArgumentError.new("Output file or output dir is needed") unless params[:file] || params[:dir]
+      self.params[:dir] = params[:dir] || File.dirname(params[:file])
+      self.params[:file] = params[:file] || File.join(params[:dir], "#{object_id}.mp4")
+      FileUtils.mkdir_p self.params[:dir]
       self.params[:bandwidth] = params[:bandwidth] || params[:bitrate]
     end
 

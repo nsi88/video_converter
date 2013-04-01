@@ -18,7 +18,7 @@ module VideoConverter
 
     self.delete_input = true
 
-    self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{output_dir} %{filename_prefix} %{encoding_profile} 1>>%{log} 2>&1'
+    self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{dir} %{filename_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
     attr_accessor :profile, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input, :chunk_base, :log
 
@@ -38,8 +38,8 @@ module VideoConverter
       res = true
       threads = []
       p = Proc.new do |profile|
-        input = profile.to_hash[:output_file]
-        output = profile.to_hash[:output_dir]
+        input = profile.to_hash[:file]
+        output = profile.to_hash[:dir]
         make_chunks(input, output) && gen_quality_playlist(output, "#{File.basename(output)}.m3u8")
       end
       [profile].flatten.each do |profile|
@@ -57,7 +57,7 @@ module VideoConverter
     def make_chunks input, output
       params = {}
       [:segment_length, :filename_prefix, :encoding_profile].each { |param| params[param] = self.send(param) }
-      command = Command.new self.class.chunks_command, params.merge(:input => input, :output_dir => output).merge(common_params)
+      command = Command.new self.class.chunks_command, params.merge(:input => input, :dir => output).merge(common_params)
       res = command.execute
       FileUtils.rm input if delete_input
       res
@@ -80,7 +80,7 @@ module VideoConverter
         res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD"
         group.sort { |g1, g2| g1.to_hash[:bandwidth] <=> g2.to_hash[:bandwidth] }.each do |quality|
           res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{quality.to_hash[:bandwidth] * 1000}\n"
-          res += File.join(chunk_base, playlist_dir, File.basename(quality.to_hash[:output_dir]) + '.m3u8')
+          res += File.join(chunk_base, playlist_dir, File.basename(quality.to_hash[:dir]) + '.m3u8')
         end
         res += "#EXT-X-ENDLIST"
         File.open(File.join(playlist_dir, "playlist#{index + 1}.m3u8"), 'w') { |f| f.write res }

@@ -9,10 +9,10 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with type mp4' do
       setup do
         @profiles = []
-        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :output_file => 'tmp/test11.mp4'))
-        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :output_file => 'tmp/test12.mp4'))
-        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :output_file => 'tmp/test21.mp4'))
-        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :output_file => 'tmp/test22.mp4'))
+        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :file => 'tmp/test11.mp4'))
+        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :file => 'tmp/test12.mp4'))
+        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :file => 'tmp/test21.mp4'))
+        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :file => 'tmp/test22.mp4'))
         @c = VideoConverter.new(:input => @input, :profile => [[@p11, @p12], [@p21, @p22]], :verbose => false, :log => 'tmp/test.log', :type => :mp4)
         @res = @c.run
       end
@@ -37,36 +37,53 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with type hls' do
       setup do
         @profiles = []
-        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :output_dir => 'tmp/test11'))
-        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :output_dir => 'tmp/test12'))
-        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :output_dir => 'tmp/test21'))
-        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :output_dir => 'tmp/test22'))
-        @c = VideoConverter.new(:input => @input, :profile => [[@p11, @p12], [@p21, @p22]], :verbose => false, :log => 'tmp/test.log', :type => :hls, :playlist_dir => 'tmp')
-        @res = @c.run
+        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :dir => 'tmp/test11'))
+        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :dir => 'tmp/test12'))
+        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :dir => 'tmp/test21'))
+        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :dir => 'tmp/test22'))
       end
-      should 'create chunks' do
-        @profiles.each do |profile|
-          assert File.exists?(File.join(profile.to_hash[:output_dir], 's-00001.ts'))
+      context '' do
+        setup do
+          @c = VideoConverter.new(:input => @input, :profile => [[@p11, @p12], [@p21, @p22]], :verbose => false, :log => 'tmp/test.log', :type => :hls, :playlist_dir => 'tmp')
+          @res = @c.run
+        end
+        should 'create chunks' do
+          @profiles.each do |profile|
+            assert File.exists?(File.join(profile.to_hash[:dir], 's-00001.ts'))
+          end
+        end
+        should 'create quality playlists' do
+          @profiles.each do |profile|
+            assert File.exists?(File.join(File.dirname(profile.to_hash[:dir]), File.basename(profile.to_hash[:dir]) + '.m3u8'))
+          end
+        end
+        should 'create group playlists' do
+          playlist1 = File.join('tmp', 'playlist1.m3u8')
+          playlist2 = File.join('tmp', 'playlist2.m3u8')
+          assert File.exists? playlist1
+          assert File.exists? playlist2
+          assert File.read(playlist1).include?('test11')
+          assert File.read(playlist1).include?('test12')
+          assert !File.read(playlist1).include?('test21')
+          assert !File.read(playlist1).include?('test22')
+          assert File.read(playlist2).include?('test21')
+          assert File.read(playlist2).include?('test22')
+          assert !File.read(playlist2).include?('test11')
+          assert !File.read(playlist2).include?('test12')
         end
       end
-      should 'create quality playlists' do
-        @profiles.each do |profile|
-          assert File.exists?(File.join(File.dirname(profile.to_hash[:output_dir]), File.basename(profile.to_hash[:output_dir]) + '.m3u8'))
+
+      context 'with no_convert flag' do
+        setup do
+          @c = VideoConverter.new(:profile => VideoConverter::Profile.new(:file => 'test/fixtures/test.mp4', :dir => '/tmp/test', :bitrate => 300), :no_convert => true, :type => :hls, :playlist_dir => 'tmp')
+          @res = @c.run
         end
-      end
-      should 'create group playlists' do
-        playlist1 = File.join('tmp', 'playlist1.m3u8')
-        playlist2 = File.join('tmp', 'playlist2.m3u8')
-        assert File.exists? playlist1
-        assert File.exists? playlist2
-        assert File.read(playlist1).include?('test11')
-        assert File.read(playlist1).include?('test12')
-        assert !File.read(playlist1).include?('test21')
-        assert !File.read(playlist1).include?('test22')
-        assert File.read(playlist2).include?('test21')
-        assert File.read(playlist2).include?('test22')
-        assert !File.read(playlist2).include?('test11')
-        assert !File.read(playlist2).include?('test12')
+        should 'return true' do
+          assert @res
+        end
+        should 'create needed files' do
+          assert File.exists? '/tmp/test/s-00001.ts'
+        end
       end
     end
   end
