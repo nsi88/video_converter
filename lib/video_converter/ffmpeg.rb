@@ -79,7 +79,6 @@ module VideoConverter
           Net::HTTP.start(url.host) do |http|
             response = http.request_head url.path
             metadata[:file_size_in_bytes] = response['content-length'].to_i
-            puts response['content-type']
           end
         elsif is_local?
           metadata[:file_size_in_bytes] = File.size(input)
