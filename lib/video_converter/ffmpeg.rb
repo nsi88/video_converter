@@ -53,7 +53,6 @@ module VideoConverter
 
     def metadata
       metadata = {}
-      return metadata unless File.exists?(input) && File.file?(input)
       s = `#{Command.new self.class.metadata_command, common_params}`
       if (m = s.match(/Stream.*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s$/).to_a).any?
         metadata[:audio_codec] = m[1]
@@ -75,7 +74,16 @@ module VideoConverter
         metadata[:frame_rate] = m[6].to_f
       end
       if metadata.any?
-        metadata[:file_size_in_bytes] = File.size(input)
+        if is_url?
+          url = URI.parse(input)
+          Net::HTTP.start(url.host) do |http|
+            response = http.request_head url.path
+            metadata[:file_size_in_bytes] = response['content-length'].to_i
+            puts response['content-type']
+          end
+        elsif is_local?
+          metadata[:file_size_in_bytes] = File.size(input)
+        end
         metadata[:format] = File.extname(input).sub('.', '')
       end
       metadata
@@ -85,6 +93,14 @@ module VideoConverter
 
     def common_params
       { :bin => self.class.bin, :input => input, :log => log }
+    end
+
+    def is_url?
+      !!input.match(/^http:\/\//)
+    end
+
+    def is_local?
+      File.file?(input)
     end
   end
 end

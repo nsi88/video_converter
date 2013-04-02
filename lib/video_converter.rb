@@ -6,6 +6,7 @@ require "video_converter/process"
 require "video_converter/ffmpeg"
 require "video_converter/live_segmenter"
 require "fileutils"
+require "net/http"
 
 module VideoConverter
   class << self

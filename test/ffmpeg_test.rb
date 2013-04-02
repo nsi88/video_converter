@@ -26,5 +26,12 @@ class FfmpegTest < Test::Unit::TestCase
         assert_equal h, VideoConverter::Ffmpeg.new(:input => 'test/fixtures/test.mp4').metadata
       end
     end
+
+    context 'when input is url' do
+      should 'not be empty' do
+        h = {:audio_codec=>"aac", :audio_sample_rate=>48000, :audio_bitrate_in_kbps=>83, :channels=>2, :duration_in_ms=>5570, :total_bitrate_in_kbps=>551, :video_codec=>"h264", :width=>560, :height=>320, :video_bitrate_in_kbps=>465, :frame_rate=>30.0, :file_size_in_bytes=>383631, :format=>"mp4"}
+        assert_equal h, VideoConverter::Ffmpeg.new(:input => 'http://techslides.com/demos/sample-videos/small.mp4').metadata
+      end
+    end
   end
 end
