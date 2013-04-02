@@ -5,6 +5,7 @@ require "video_converter/command"
 require "video_converter/process"
 require "video_converter/ffmpeg"
 require "video_converter/live_segmenter"
+require "video_converter/input"
 require "fileutils"
 require "net/http"
 
@@ -23,9 +24,5 @@ module VideoConverter
 
   def self.find id
     VideoConverter::Process.new id
-  end
-
-  def self.metadata input
-    VideoConverter::Ffmpeg.new(:input => input).metadata
   end
 end
