@@ -23,4 +23,8 @@ module VideoConverter
   def self.find id
     VideoConverter::Process.new id
   end
+
+  def self.metadata input
+    VideoConverter::Ffmpeg.new(:input => input).metadata
+  end
 end

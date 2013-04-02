@@ -27,5 +27,9 @@ module VideoConverter
         system command
       end
     end
+
+    def to_s
+      command
+    end
   end
 end
