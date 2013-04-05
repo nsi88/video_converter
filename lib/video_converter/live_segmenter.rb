@@ -53,7 +53,7 @@ module VideoConverter
     def gen_quality_playlist output
       res = ''
       durations = []
-      Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).each do |chunk|
+      Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).sort { |c1, c2| File.basename(c1).match(/\d+/).to_s.to_i <=> File.basename(c2).match(/\d+/).to_s.to_i }.each do |chunk|
         durations << (duration = chunk_duration chunk)
         res += "#EXTINF:#%0.2f\n" % duration
         res += './' + File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n"

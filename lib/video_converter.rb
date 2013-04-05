@@ -21,7 +21,7 @@ module VideoConverter
     VideoConverter::Base.new params
   end
 
-  def self.find id
-    VideoConverter::Process.new id
+  def self.find uid
+    VideoConverter::Process.new uid
   end
 end

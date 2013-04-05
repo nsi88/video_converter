@@ -2,28 +2,28 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :output_array, :log, :id
+    attr_accessor :input, :output_array, :log, :uid
 
     def initialize params
       raise ArgumentError.new('input is needed') if params[:input].nil? || params[:input].empty?
       self.input = Input.new(params[:input])
       raise ArgumentError.new('input does not exist') unless input.exists?
+      self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
       raise ArgumentError.new('output is needed') if params[:output].nil? || params[:output].empty?
-      self.output_array = OutputArray.new(params[:output])
+      self.output_array = OutputArray.new(params[:output], uid)
       if params[:log].nil?
         self.log = '/dev/null'
       else
         self.log = params[:log]
         FileUtils.mkdir_p File.dirname(log)
       end
-      self.id = Socket.gethostname + object_id.to_s
     end
 
     def run
-      process = VideoConverter::Process.new(id)
+      process = VideoConverter::Process.new(uid)
       process.pid = `cat /proc/self/stat`.split[3]
       actions = []
-      actions = [:copy, :convert, :segment, :deploy]
+      actions = [:convert, :segment]
       actions.each do |action|
         process.status = action.to_s
         process.progress = 0
@@ -40,14 +40,6 @@ module VideoConverter
 
     private
 
-    def copy
-      if input.is_local?
-        true
-      else
-        raise NotImplementerError
-      end
-    end
-
     def convert
       params = {}
       [:input, :output_array, :log].each do |param|
@@ -62,10 +54,6 @@ module VideoConverter
         params[param] = self.send(param)
       end
       LiveSegmenter.new(params).run
-    end
-
-    def deploy
-      true
     end
   end
 end
