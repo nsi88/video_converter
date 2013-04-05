@@ -3,36 +3,40 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :one_pass, :one_pass_command, :first_pass_command, :second_pass_command
+      attr_accessor :bin, :one_pass, :paral, :log, :one_pass_command, :first_pass_command, :second_pass_command
     end
 
     self.bin = '/usr/local/bin/ffmpeg'
-
     self.one_pass = false
+    self.paral = true
+    self.log = '/dev/null'
     
-    self.one_pass_command = "%{bin} -i %{input} -y -aspect %{aspect} -acodec copy -vcodec libx264 -g 100 -keyint_min 50 -b:v %{bitrate}k -bt %{bitrate}k -threads %{threads} -f mp4 %{file} 1>%{log} 2>&1 || exit 1"
+    self.one_pass_command = "%{bin} -i %{input} -y -acodec copy -vcodec libx264 -g 100 -keyint_min 50 -b:v %{video_bitrate}k -bt %{video_bitrate}k -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
 
-    self.first_pass_command = "%{bin} -i %{input} -y -aspect %{aspect} -an -vcodec libx264 -g 100 -keyint_min 50 -pass 1 -passlogfile %{input}.log -b:v 700k -bt 700k -threads %{threads} -f mp4 /dev/null  1>>%{log} 2>&1 || exit 1"
+    self.first_pass_command = "%{bin} -i %{input} -y -an -vcodec libx264 -g 100 -keyint_min 50 -pass 1 -passlogfile %{input}.log -b:v 700k -bt 700k -f mp4 /dev/null  1>>%{log} 2>&1 || exit 1"
 
-    self.second_pass_command = "%{bin} -i %{input} -y -aspect %{aspect} -acodec copy -vcodec libx264 -g 100 -keyint_min 50 -pass 2 -passlogfile %{input}.log -b:v %{bitrate}k -bt %{bitrate}k -threads %{threads} -f mp4 %{file} 1>%{log} 2>&1 || exit 1"
+    self.second_pass_command = "%{bin} -i %{input} -y -acodec copy -vcodec libx264 -g 100 -keyint_min 50 -pass 2 -passlogfile %{input}.log -b:v %{video_bitrate}k -bt %{video_bitrate}k -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
 
-    attr_accessor :input, :profile, :one_pass, :paral, :log
+    attr_accessor :input, :output_array, :one_pass, :paral, :log
 
     def initialize params
-      params.each do |param, value|
-        self.send("#{param}=", value)
+      [:input, :output_array].each do |param|
+        self.send("#{param}=", params[param]) or raise ArgumentError.new("#{param} is needed")
+      end
+      [:one_pass, :paral, :log].each do |param|
+        self.send("#{param}=", params[param] ? params[param] : self.class.send(param))
       end
     end
 
     def run
       res = true
       threads = []
-      Profile.groups(profile).each do |qualities|
+      output_array.groups.each do |group|
         unless one_pass
-          group_command = Command.new self.class.first_pass_command, common_params.merge(qualities.first.to_hash)
-          res &&= group_command.execute
+          first_pass_command = Command.new self.class.first_pass_command, common_params.merge(group.first.to_hash).merge((group.first.playlist.to_hash rescue {}))
+          res &&= first_pass_command.execute
         end
-        qualities.each do |quality|
+        group.each do |quality|
           if one_pass
             quality_command = Command.new self.class.one_pass_command, common_params.merge(quality.to_hash)
           else

@@ -1,22 +1,21 @@
 require "video_converter/version"
-require "video_converter/profile"
 require "video_converter/base"
 require "video_converter/command"
 require "video_converter/process"
 require "video_converter/ffmpeg"
 require "video_converter/live_segmenter"
 require "video_converter/input"
+require "video_converter/output"
+require "video_converter/output_array"
 require "fileutils"
 require "net/http"
 
 module VideoConverter
   class << self
-    attr_accessor :type, :paral, :no_convert
+    attr_accessor :paral
   end
   
-  self.type = :mp4
   self.paral = true
-  self.no_convert = false
 
   def self.new params
     VideoConverter::Base.new params

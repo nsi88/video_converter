@@ -3,92 +3,78 @@
 module VideoConverter
   class LiveSegmenter
     class << self
-      attr_accessor :bin, :ffprobe_bin, :chunks_command, :segment_length, :filename_prefix, :encoding_profile, :delete_input
+      attr_accessor :bin, :ffprobe_bin, :chunks_command, :chunk_prefix, :encoding_profile, :log, :paral
     end
     
     self.bin = '/usr/local/bin/live_segmenter'
-
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
-
-    self.segment_length = 10
-
-    self.filename_prefix = 's'
-    
+    self.chunk_prefix = 's'
     self.encoding_profile = 's'
+    self.log = '/dev/null'
+    self.paral = true
 
-    self.delete_input = true
+    self.chunks_command = '%{ffmpeg_bin} -i %{local_path} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
-    self.chunks_command = '%{ffmpeg_bin} -i %{input} -vcodec libx264 -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_length} %{dir} %{filename_prefix} %{encoding_profile} 1>>%{log} 2>&1'
-
-    attr_accessor :profile, :playlist_dir, :paral, :segment_length, :filename_prefix, :encoding_profile, :delete_input, :chunk_base, :log
+    attr_accessor :paral, :chunk_prefix, :encoding_profile, :log, :output_array
 
     def initialize params
-      [:profile, :playlist_dir].each do |param|
-        self.send("#{param}=", params[param])
-      end
-      [:segment_length, :filename_prefix, :encoding_profile, :delete_input].each do |param|
+      self.output_array = params[:output_array] or raise ArgumentError.new("output_array is needed")
+      [:chunk_prefix, :encoding_profile, :log, :paral].each do |param|
         self.send("#{param}=", params[param].nil? ? self.class.send(param) : params[param])
       end
-      self.chunk_base = params[:chunk_base] ? params[:chunk_base] : '.'
-      self.chunk_base += '/' unless chunk_base.end_with?('/')
-      self.log = params[:log]
     end
 
     def run
       res = true
       threads = []
-      p = Proc.new do |profile|
-        input = profile.to_hash[:file]
-        output = profile.to_hash[:dir]
-        make_chunks(input, output) && gen_quality_playlist(output, "#{File.basename(output)}.m3u8")
+      p = Proc.new do |output|
+        make_chunks(output) && gen_quality_playlist(output)
       end
-      [profile].flatten.each do |profile|
-        if paral
-          threads << Thread.new { res &&= p.call(profile) }
-        else
-          res &&= p.call(profile)
+      output_array.playlists.each do |playlist|
+        playlist.items.each do |item|
+          if paral
+            threads << Thread.new { res &&= p.call(item) }
+          else
+            res &&= p.call(item)
+          end
         end
+        res &&= gen_group_playlist playlist
       end
-      gen_group_playlists
+      threads.each { |t| t.join } if paral
+      res
     end
 
     private
 
-    def make_chunks input, output
-      params = {}
-      [:segment_length, :filename_prefix, :encoding_profile].each { |param| params[param] = self.send(param) }
-      command = Command.new self.class.chunks_command, params.merge(:input => input, :dir => output).merge(common_params)
-      res = command.execute
-      FileUtils.rm input if delete_input
-      res
+    def make_chunks output
+      Command.new(self.class.chunks_command, common_params.merge(output.to_hash)).execute
     end
 
-    def gen_quality_playlist chunks_dir, playlist_name
+    def gen_quality_playlist output
       res = ''
       durations = []
-      Dir::glob(File.join(chunks_dir, 's-*[0-9].ts')).each do |chunk|
+      Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).each do |chunk|
         durations << (duration = chunk_duration chunk)
         res += "#EXTINF:#%0.2f\n" % duration
-        res += "#{chunk_base}#{File.basename(chunks_dir)}/#{File.basename(chunk)}\n"
+        res += './' + File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n"
       end
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
-      File.open(File.join(playlist_dir, playlist_name), 'w') { |f| f.write res }
+      File.open(File.join(output.work_dir, output.filename), 'w') { |f| f.write res }
     end
 
-    def gen_group_playlists
-      Profile.groups(profile).each_with_index do |group, index|
-        res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD"
-        group.sort { |g1, g2| g1.to_hash[:bandwidth] <=> g2.to_hash[:bandwidth] }.each do |quality|
-          res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{quality.to_hash[:bandwidth] * 1000}\n"
-          res += File.join(chunk_base, playlist_dir, File.basename(quality.to_hash[:dir]) + '.m3u8')
-        end
-        res += "#EXT-X-ENDLIST"
-        File.open(File.join(playlist_dir, "playlist#{index + 1}.m3u8"), 'w') { |f| f.write res }
+    def gen_group_playlist playlist
+      res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD"
+      playlist.streams.sort { |s1, s2| s1['bandwidth'].to_i <=> s2['bandwidth'].to_i }.each do |stream|
+        res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{stream['bandwidth'].to_i * 1000}\n"
+        res += File.join('.', stream['path']) + "\n"
       end
+      res += "#EXT-X-ENDLIST"
+      File.open(File.join(playlist.work_dir, playlist.filename), 'w') { |f| f.write res }
+      true
     end
 
     def common_params
-      { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin, :log => log }
+      { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin, :log => log, :chunk_prefix => chunk_prefix, :encoding_profile => encoding_profile }
     end
 
     def chunk_duration chunk

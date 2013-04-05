@@ -14,6 +14,10 @@ module VideoConverter
       self.input = input
     end
 
+    def to_s
+      input
+    end
+
     def exists?
       if is_http?
         url = URI.parse(input)
@@ -65,8 +69,6 @@ module VideoConverter
       metadata
     end
 
-    private
-
     def is_http?
       !!input.match(/^http:\/\//)
     end
@@ -74,6 +76,8 @@ module VideoConverter
     def is_local?
       File.file?(input)
     end
+
+    private
 
     def common_params
       { :bin => VideoConverter::Ffmpeg.bin, :input => input }
