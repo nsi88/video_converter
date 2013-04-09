@@ -3,15 +3,18 @@
 module VideoConverter
   class Output
     class << self
-      attr_accessor :base_url, :work_dir, :video_bitrate, :segment_seconds
+      attr_accessor :base_url, :work_dir, :video_bitrate, :audio_bitrate, :segment_seconds, :keyframe_interval, :threads
     end
 
     self.base_url = '/tmp'
     self.work_dir = '/tmp'
     self.video_bitrate = 700
+    self.audio_bitrate = 200
     self.segment_seconds = 10
+    self.keyframe_interval = 250
+    self.threads = 1
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir
+    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads
 
     def initialize params = {}
       self.uid = params[:uid]
@@ -36,21 +39,27 @@ module VideoConverter
       self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid)
       format_regexp = Regexp.new("#{File.extname(filename)}$")
       self.local_path = File.join(work_dir, filename.sub(format_regexp, ".#{format}"))
+      FileUtils.mkdir_p File.dirname(local_path)
       if type == :segmented
         self.chunks_dir = File.join(work_dir, filename.sub(format_regexp, ''))
         FileUtils.mkdir_p chunks_dir
       end
+      self.threads = self.class.threads
 
       # Rate controle
       self.video_bitrate = params[:video_bitrate].to_i > 0 ? params[:video_bitrate].to_i : self.class.video_bitrate
+      self.audio_bitrate = params[:audio_bitrate].to_i > 0 ? params[:audio_bitrate].to_i : self.class.audio_bitrate
 
       # Segmented streaming
       self.streams = params[:streams].to_a
       self.segment_seconds = params[:segment_seconds] || self.class.segment_seconds
+
+      # Frame rate
+      self.keyframe_interval = params[:keyframe_interval].to_i > 0 ? params[:keyframe_interval].to_i : self.class.keyframe_interval
     end
 
     def to_hash
-      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir]
+      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads]
       Hash[*keys.map{ |key| [key, self.send(key)] }.flatten]
     end
 
