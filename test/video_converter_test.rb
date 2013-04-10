@@ -6,27 +6,22 @@ class VideoConverterTest < Test::Unit::TestCase
       @input = 'test/fixtures/test.mp4'
     end
 
-    context 'with type mp4' do
+    context 'with default type' do
       setup do
-        @profiles = []
-        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :file => 'tmp/test11.mp4'))
-        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :file => 'tmp/test12.mp4'))
-        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :file => 'tmp/test21.mp4'))
-        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :file => 'tmp/test22.mp4'))
-        @c = VideoConverter.new(:input => @input, :profile => [[@p11, @p12], [@p21, @p22]], :verbose => false, :log => 'tmp/test.log', :type => :mp4)
+        @c = VideoConverter.new(:input => @input, :output => [{:video_bitrate => 300, :filename => 'tmp/test1.mp4'}, {:video_bitrate => 700, :filename => 'tmp/test2.mp4'}], :log => 'tmp/test.log')
         @res = @c.run
       end
       should 'convert files' do
-        4.times do |n|
-          file = "tmp/test#{n / 2 + 1}#{n.even? ? 1 : 2}.mp4"
+        2.times do |n|
+          file = File.join(VideoConverter::Output.work_dir, @c.uid, "tmp/test#{n + 1}.mp4")
           assert File.exists?(file)
           assert File.size(file) > 0
         end
       end
       should 'return success convert process' do
-        assert VideoConverter.find(@c.id)
+        assert VideoConverter.find(@c.uid)
         assert @res
-        assert_equal 'convert_success', VideoConverter.find(@c.id).status
+        assert_equal 'finished', VideoConverter.find(@c.uid).status
       end
       should 'write log file' do
         assert File.exists?('tmp/test.log')
@@ -34,56 +29,39 @@ class VideoConverterTest < Test::Unit::TestCase
       end
     end
 
-    context 'with type hls' do
+    context 'with type segmented' do
       setup do
-        @profiles = []
-        @profiles << (@p11 = VideoConverter::Profile.new(:bitrate => 300, :dir => 'tmp/test11'))
-        @profiles << (@p12 = VideoConverter::Profile.new(:bitrate => 400, :dir => 'tmp/test12'))
-        @profiles << (@p21 = VideoConverter::Profile.new(:bitrate => 700, :dir => 'tmp/test21'))
-        @profiles << (@p22 = VideoConverter::Profile.new(:bitrate => 700, :dir => 'tmp/test22'))
+        @c = VideoConverter.new(:input => @input, :output => [{:type => :segmented, :video_bitrate => 500, :audio_bitrate => 128, :filename => 'tmp/sd/r500.m3u8'}, {:type => :segmented, :video_bitrate => 700, :audio_bitrate => 128, :filename => 'tmp/sd/r700.m3u8'}, {:type => :segmented, :video_bitrate => 200, :audio_bitrate => 64, :filename => 'tmp/ld/r200.m3u8'}, {:type => :segmented, :video_bitrate => 300, :audio_bitrate => 60, :filename => 'tmp/ld/r300.m3u8'}, {:type => :playlist, :streams => [{'path' => 'tmp/sd/r500.m3u8', 'bandwidth' => 650}, {'path' => 'tmp/sd/r700.m3u8', 'bandwidth' => 850}], :filename => 'tmp/playlist_sd.m3u8'}, {:type => :playlist, :streams => [{'path' => 'tmp/ld/r200.m3u8', 'bandwidth' => 300}, {'path' => 'tmp/ld/r300.m3u8', 'bandwidth' => 400}], :filename => 'tmp/playlist_ld.m3u8'}])
+        @res = @c.run
+        @work_dir = File.join(VideoConverter::Output.work_dir, @c.uid)
+        puts @work_dir
       end
-      context '' do
-        setup do
-          @c = VideoConverter.new(:input => @input, :profile => [[@p11, @p12], [@p21, @p22]], :verbose => false, :log => 'tmp/test.log', :type => :hls, :playlist_dir => 'tmp')
-          @res = @c.run
-        end
-        should 'create chunks' do
-          @profiles.each do |profile|
-            assert File.exists?(File.join(profile.to_hash[:dir], 's-00001.ts'))
-          end
-        end
-        should 'create quality playlists' do
-          @profiles.each do |profile|
-            assert File.exists?(File.join(File.dirname(profile.to_hash[:dir]), File.basename(profile.to_hash[:dir]) + '.m3u8'))
-          end
-        end
-        should 'create group playlists' do
-          playlist1 = File.join('tmp', 'playlist1.m3u8')
-          playlist2 = File.join('tmp', 'playlist2.m3u8')
-          assert File.exists? playlist1
-          assert File.exists? playlist2
-          assert File.read(playlist1).include?('test11')
-          assert File.read(playlist1).include?('test12')
-          assert !File.read(playlist1).include?('test21')
-          assert !File.read(playlist1).include?('test22')
-          assert File.read(playlist2).include?('test21')
-          assert File.read(playlist2).include?('test22')
-          assert !File.read(playlist2).include?('test11')
-          assert !File.read(playlist2).include?('test12')
+      should 'create chunks' do
+        assert Dir.entries(File.join(@work_dir, 'tmp/sd/r500')).count > 0
+        assert Dir.entries(File.join(@work_dir, 'tmp/sd/r700')).count > 0
+        assert Dir.entries(File.join(@work_dir, 'tmp/ld/r200')).count > 0
+        assert Dir.entries(File.join(@work_dir, 'tmp/ld/r300')).count > 0
+      end
+      should 'create quality playlists' do
+        %w(tmp/sd/r500.m3u8 tmp/sd/r700.m3u8 tmp/ld/r200.m3u8 tmp/ld/r300.m3u8).each do |playlist|
+          assert File.exists?(File.join(@work_dir, playlist))
+          assert File.read(File.join(@work_dir, playlist)).include?('s-00001')
         end
       end
-
-      context 'with no_convert flag' do
-        setup do
-          @c = VideoConverter.new(:profile => VideoConverter::Profile.new(:file => 'test/fixtures/test.mp4', :dir => '/tmp/test', :bitrate => 300), :no_convert => true, :type => :hls, :playlist_dir => 'tmp')
-          @res = @c.run
-        end
-        should 'return true' do
-          assert @res
-        end
-        should 'create needed files' do
-          assert File.exists? '/tmp/test/s-00001.ts'
-        end
+      should 'create group playlists' do
+        playlist = File.join(@work_dir, 'tmp/playlist_sd.m3u8')
+        assert File.exists?(playlist)
+        assert File.read(playlist).include?('r500.m3u8')
+        assert File.read(playlist).include?('r700.m3u8')
+        assert !File.read(playlist).include?('r200.m3u8')
+        assert !File.read(playlist).include?('r300.m3u8')
+        
+        playlist = File.join(@work_dir, 'tmp/playlist_ld.m3u8')
+        assert File.exists?(playlist)
+        assert !File.read(playlist).include?('r500.m3u8')
+        assert !File.read(playlist).include?('r700.m3u8')
+        assert File.read(playlist).include?('r200.m3u8')
+        assert File.read(playlist).include?('r300.m3u8')
       end
     end
   end

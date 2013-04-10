@@ -21,6 +21,7 @@ module VideoConverter
 
     def run
       process = VideoConverter::Process.new(uid)
+      process.status = 'started'
       process.pid = `cat /proc/self/stat`.split[3]
       actions = []
       actions = [:convert, :segment]
@@ -35,6 +36,7 @@ module VideoConverter
           return false
         end
       end
+      process.status = 'finished'
       true
     end
 
