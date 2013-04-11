@@ -8,7 +8,7 @@ class VideoConverterTest < Test::Unit::TestCase
 
     context 'with default type' do
       setup do
-        @c = VideoConverter.new(:input => @input, :output => [{:video_bitrate => 300, :filename => 'tmp/test1.mp4'}, {:video_bitrate => 700, :filename => 'tmp/test2.mp4'}], :log => 'tmp/test.log')
+        @c = VideoConverter.new('input' => @input, 'output' => [{'video_bitrate' => 300, 'filename' => 'tmp/test1.mp4'}, {'video_bitrate' => 700, :filename => 'tmp/test2.mp4'}], 'log' => 'tmp/test.log')
         @res = @c.run
       end
       should 'convert files' do

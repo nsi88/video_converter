@@ -25,3 +25,18 @@ module VideoConverter
     VideoConverter::Process.new uid
   end
 end
+
+Hash.class_eval do
+  def deep_symbolize_keys
+    inject({}) do |options, (key, value)|
+      value = value.map { |v| v.is_a?(Hash) ? v.deep_symbolize_keys : v } if value.is_a? Array
+      value = value.deep_symbolize_keys if value.is_a? Hash
+      options[(key.to_sym rescue key) || key] = value
+      options
+    end
+  end
+  
+  def deep_symbolize_keys!
+    self.replace(self.deep_symbolize_keys)
+  end
+end

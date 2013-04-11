@@ -73,7 +73,7 @@ module VideoConverter
 
     def qualities output
       raise TypeError.new('Only for playlists') unless type == :playlist
-      stream_paths = streams.map { |stream| stream['path'] }
+      stream_paths = streams.map { |stream| stream[:path] }
       self.class.outputs(output).select { |output| stream_paths.include? output.filename }
     end
   end

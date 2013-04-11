@@ -64,9 +64,9 @@ module VideoConverter
 
     def gen_group_playlist playlist
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD"
-      playlist.streams.sort { |s1, s2| s1['bandwidth'].to_i <=> s2['bandwidth'].to_i }.each do |stream|
-        res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{stream['bandwidth'].to_i * 1000}\n"
-        res += File.join('.', stream['path']) + "\n"
+      playlist.streams.sort { |s1, s2| s1[:bandwidth].to_i <=> s2[:bandwidth].to_i }.each do |stream|
+        res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{stream[:bandwidth].to_i * 1000}\n"
+        res += File.join('.', stream[:path]) + "\n"
       end
       res += "#EXT-X-ENDLIST"
       File.open(File.join(playlist.work_dir, playlist.filename), 'w') { |f| f.write res }

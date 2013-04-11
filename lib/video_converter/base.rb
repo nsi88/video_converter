@@ -5,6 +5,7 @@ module VideoConverter
     attr_accessor :input, :output_array, :log, :uid
 
     def initialize params
+      params.deep_symbolize_keys!
       raise ArgumentError.new('input is needed') if params[:input].nil? || params[:input].empty?
       self.input = Input.new(params[:input])
       raise ArgumentError.new('input does not exist') unless input.exists?
