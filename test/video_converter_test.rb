@@ -34,7 +34,6 @@ class VideoConverterTest < Test::Unit::TestCase
         @c = VideoConverter.new(:input => @input, :output => [{:type => :segmented, :video_bitrate => 500, :audio_bitrate => 128, :filename => 'tmp/sd/r500.m3u8'}, {:type => :segmented, :video_bitrate => 700, :audio_bitrate => 128, :filename => 'tmp/sd/r700.m3u8'}, {:type => :segmented, :video_bitrate => 200, :audio_bitrate => 64, :filename => 'tmp/ld/r200.m3u8'}, {:type => :segmented, :video_bitrate => 300, :audio_bitrate => 60, :filename => 'tmp/ld/r300.m3u8'}, {:type => :playlist, :streams => [{'path' => 'tmp/sd/r500.m3u8', 'bandwidth' => 650}, {'path' => 'tmp/sd/r700.m3u8', 'bandwidth' => 850}], :filename => 'tmp/playlist_sd.m3u8'}, {:type => :playlist, :streams => [{'path' => 'tmp/ld/r200.m3u8', 'bandwidth' => 300}, {'path' => 'tmp/ld/r300.m3u8', 'bandwidth' => 400}], :filename => 'tmp/playlist_ld.m3u8'}])
         @res = @c.run
         @work_dir = File.join(VideoConverter::Output.work_dir, @c.uid)
-        puts @work_dir
       end
       should 'create chunks' do
         assert Dir.entries(File.join(@work_dir, 'tmp/sd/r500')).count > 0

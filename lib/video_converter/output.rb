@@ -36,7 +36,7 @@ module VideoConverter
       self.base_url = (params[:url] ? File.dirname(params[:url]) : params[:base_url]) || self.class.base_url
       self.filename = (params[:url] ? File.basename(params[:url]) : params[:filename]) || self.uid + '.' + self.format
       self.url = params[:url] ? params[:url] : File.join(base_url, filename)
-      self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid)
+      self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid.to_s)
       format_regexp = Regexp.new("#{File.extname(filename)}$")
       self.local_path = File.join(work_dir, filename.sub(format_regexp, ".#{format}"))
       FileUtils.mkdir_p File.dirname(local_path)
