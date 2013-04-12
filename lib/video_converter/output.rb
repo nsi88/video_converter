@@ -3,7 +3,7 @@
 module VideoConverter
   class Output
     class << self
-      attr_accessor :base_url, :work_dir, :video_bitrate, :audio_bitrate, :segment_seconds, :keyframe_interval, :threads
+      attr_accessor :base_url, :work_dir, :video_bitrate, :audio_bitrate, :segment_seconds, :keyframe_interval, :threads, :video_codec, :audio_codec
     end
 
     self.base_url = '/tmp'
@@ -13,8 +13,10 @@ module VideoConverter
     self.segment_seconds = 10
     self.keyframe_interval = 250
     self.threads = 1
+    self.video_codec = 'libx264'
+    self.audio_codec = 'libfaac'
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads
+    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec
 
     def initialize params = {}
       self.uid = params[:uid].to_s
@@ -56,10 +58,14 @@ module VideoConverter
 
       # Frame rate
       self.keyframe_interval = params[:keyframe_interval].to_i > 0 ? params[:keyframe_interval].to_i : self.class.keyframe_interval
+
+      # Format and codecs
+      self.video_codec = (params[:copy_video] ? 'copy' : params[:video_codec]) || self.class.video_codec
+      self.audio_codec = (params[:copy_audio] ? 'copy' : params[:audio_codec]) || self.class.audio_codec
     end
 
     def to_hash
-      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads]
+      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec]
       Hash[*keys.map{ |key| [key, self.send(key)] }.flatten]
     end
 
