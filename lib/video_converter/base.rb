@@ -2,16 +2,13 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input, :output_array, :log, :uid
+    attr_accessor :input_array, :output_array, :log, :uid
 
     def initialize params
-      params.deep_symbolize_keys!
-      raise ArgumentError.new('input is needed') if params[:input].nil? || params[:input].empty?
-      self.input = Input.new(params[:input])
-      raise ArgumentError.new('input does not exist') unless input.exists?
+      self.input_array = InputArray.new(params[:input])
+      input_array.inputs.each { |input| raise ArgumentError.new("#{input} does not exist") unless input.exists? }
       self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
-      raise ArgumentError.new('output is needed') if params[:output].nil? || params[:output].empty?
-      self.output_array = OutputArray.new(params[:output], uid)
+      self.output_array = OutputArray.new(params[:output] || {}, uid)
       if params[:log].nil?
         self.log = '/dev/null'
       else
@@ -45,7 +42,7 @@ module VideoConverter
 
     def convert
       params = {}
-      [:input, :output_array, :log].each do |param|
+      [:input_array, :output_array, :log].each do |param|
         params[param] = self.send(param)
       end
       Ffmpeg.new(params).run

@@ -5,6 +5,7 @@ require "video_converter/process"
 require "video_converter/ffmpeg"
 require "video_converter/live_segmenter"
 require "video_converter/input"
+require "video_converter/input_array"
 require "video_converter/output"
 require "video_converter/output_array"
 require "fileutils"
@@ -18,7 +19,7 @@ module VideoConverter
   self.paral = true
 
   def self.new params
-    VideoConverter::Base.new params
+    VideoConverter::Base.new params.deep_symbolize_keys
   end
 
   def self.find uid

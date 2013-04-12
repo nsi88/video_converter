@@ -11,6 +11,7 @@ module VideoConverter
     attr_accessor :input
 
     def initialize input
+      raise ArgumentError.new('input is needed') if input.nil? || input.empty?
       self.input = input
     end
 

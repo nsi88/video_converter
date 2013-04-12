@@ -17,10 +17,10 @@ module VideoConverter
 
     self.second_pass_command = "%{bin} -i %{input} -y -pass 2 -passlogfile %{passlogfile} -c:a %{audio_codec} -b:a %{audio_bitrate}k -c:v %{video_codec} -g %{keyframe_interval} -keyint_min 25 %{frame_rate} -b:v %{video_bitrate}k %{size} -threads %{threads} -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
 
-    attr_accessor :input, :output_array, :one_pass, :paral, :log
+    attr_accessor :input_array, :output_array, :one_pass, :paral, :log
 
     def initialize params
-      [:input, :output_array].each do |param|
+      [:input_array, :output_array].each do |param|
         self.send("#{param}=", params[param]) or raise ArgumentError.new("#{param} is needed")
       end
       [:one_pass, :paral, :log].each do |param|
@@ -30,35 +30,37 @@ module VideoConverter
 
     def run
       res = true
-      threads = []
-      output_array.groups.each_with_index do |group, group_number|
-        passlogfile = File.join(File.dirname(group.first.local_path), "#{group_number}.log")
-        one_pass = self.one_pass || group.first.video_codec == 'copy'
-        unless one_pass
-          first_pass_command = Command.new self.class.first_pass_command, prepare_params(common_params.merge(group.first.to_hash).merge((group.first.playlist.to_hash rescue {})).merge(:passlogfile => passlogfile))
-          res &&= first_pass_command.execute
-        end
-        group.each do |quality|
-          if one_pass
-            quality_command = Command.new self.class.one_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile))
-          else
-            quality_command = Command.new self.class.second_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile))
+      input_array.inputs.each do |input|
+        threads = []
+        output_array.groups.each_with_index do |group, group_number|
+          passlogfile = File.join(File.dirname(group.first.local_path), "#{group_number}.log")
+          one_pass = self.one_pass || group.first.video_codec == 'copy'
+          unless one_pass
+            first_pass_command = Command.new self.class.first_pass_command, prepare_params(common_params.merge(group.first.to_hash).merge((group.first.playlist.to_hash rescue {})).merge(:passlogfile => passlogfile, :input => input))
+            res &&= first_pass_command.execute
           end
-          if paral
-            threads << Thread.new { res &&= quality_command.execute }
-          else
-            res &&= quality_command.execute
+          group.each do |quality|
+            if one_pass
+              quality_command = Command.new self.class.one_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile, :input => input))
+            else
+              quality_command = Command.new self.class.second_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile, :input => input))
+            end
+            if paral
+              threads << Thread.new { res &&= quality_command.execute }
+            else
+              res &&= quality_command.execute
+            end
           end
         end
+        threads.each { |t| t.join } if paral
       end
-      threads.each { |t| t.join } if paral
       res
     end
 
     private 
 
     def common_params
-      { :bin => self.class.bin, :input => input, :log => log }
+      { :bin => self.class.bin, :log => log }
     end
 
     def prepare_params params
