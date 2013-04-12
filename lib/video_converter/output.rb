@@ -17,7 +17,7 @@ module VideoConverter
     attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads
 
     def initialize params = {}
-      self.uid = params[:uid]
+      self.uid = params[:uid].to_s
 
       # General output options
       self.type = params[:type] ? params[:type].to_sym : :standard
@@ -36,7 +36,7 @@ module VideoConverter
       self.base_url = (params[:url] ? File.dirname(params[:url]) : params[:base_url]) || self.class.base_url
       self.filename = (params[:url] ? File.basename(params[:url]) : params[:filename]) || self.uid + '.' + self.format
       self.url = params[:url] ? params[:url] : File.join(base_url, filename)
-      self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid.to_s)
+      self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid)
       format_regexp = Regexp.new("#{File.extname(filename)}$")
       self.local_path = File.join(work_dir, filename.sub(format_regexp, ".#{format}"))
       FileUtils.mkdir_p File.dirname(local_path)
