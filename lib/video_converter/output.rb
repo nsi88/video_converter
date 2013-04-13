@@ -16,7 +16,7 @@ module VideoConverter
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec
+    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path
 
     def initialize params = {}
       self.uid = params[:uid].to_s
@@ -47,6 +47,7 @@ module VideoConverter
         FileUtils.mkdir_p chunks_dir
       end
       self.threads = self.class.threads
+      self.path = params[:path]
 
       # Rate controle
       self.video_bitrate = params[:video_bitrate].to_i > 0 ? params[:video_bitrate].to_i : self.class.video_bitrate

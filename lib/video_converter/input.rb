@@ -8,11 +8,13 @@ module VideoConverter
 
     self.metadata_command = "%{bin} -i %{input} 2>&1"
 
-    attr_accessor :input
+    attr_accessor :input, :outputs, :output_groups
 
     def initialize input
       raise ArgumentError.new('input is needed') if input.nil? || input.empty?
       self.input = input
+      self.outputs = []
+      self.output_groups = []
     end
 
     def to_s

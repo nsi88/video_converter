@@ -17,14 +17,5 @@ module VideoConverter
     def playlists
       outputs.select { |output| output.type == :playlist }
     end
-
-    def groups
-      groups = []
-      playlists.each { |playlist| groups << playlist.items }
-      outputs.select { |output| output.playlist.nil? && [:standard, :segmented].include?(output.type) }.each do |output|
-        groups << [output]
-      end
-      groups
-    end
   end
 end   

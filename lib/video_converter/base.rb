@@ -5,10 +5,10 @@ module VideoConverter
     attr_accessor :input_array, :output_array, :log, :uid
 
     def initialize params
-      self.input_array = InputArray.new(params[:input])
-      input_array.inputs.each { |input| raise ArgumentError.new("#{input} does not exist") unless input.exists? }
       self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
       self.output_array = OutputArray.new(params[:output] || {}, uid)
+      self.input_array = InputArray.new(params[:input], output_array)
+      input_array.inputs.each { |input| raise ArgumentError.new("#{input} does not exist") unless input.exists? }
       if params[:log].nil?
         self.log = '/dev/null'
       else

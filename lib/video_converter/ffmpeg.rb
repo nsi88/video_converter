@@ -32,7 +32,7 @@ module VideoConverter
       res = true
       input_array.inputs.each do |input|
         threads = []
-        output_array.groups.each_with_index do |group, group_number|
+        input.output_groups.each_with_index do |group, group_number|
           passlogfile = File.join(File.dirname(group.first.local_path), "#{group_number}.log")
           one_pass = self.one_pass || group.first.video_codec == 'copy'
           unless one_pass
