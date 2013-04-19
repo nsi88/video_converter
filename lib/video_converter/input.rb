@@ -26,7 +26,7 @@ module VideoConverter
         url = URI.parse(input)
         Net::HTTP.start(url.host) do |http|
           response = http.request_head url.path
-          Net::HTTPSuccess === response && response['content-type'].include?('video')
+          Net::HTTPSuccess === response
         end
       elsif is_local?
         File.file? input
