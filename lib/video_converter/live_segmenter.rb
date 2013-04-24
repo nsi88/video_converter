@@ -55,8 +55,8 @@ module VideoConverter
       durations = []
       Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).sort { |c1, c2| File.basename(c1).match(/\d+/).to_s.to_i <=> File.basename(c2).match(/\d+/).to_s.to_i }.each do |chunk|
         durations << (duration = chunk_duration chunk)
-        res += "#EXTINF:#%0.2f\n" % duration
-        res += './' + File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n"
+        res += "#EXTINF:%0.2f,\n" % duration
+        res += File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n"
       end
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
       File.open(File.join(output.work_dir, output.filename), 'w') { |f| f.write res }
@@ -66,7 +66,7 @@ module VideoConverter
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n"
       playlist.streams.sort { |s1, s2| s1[:bandwidth].to_i <=> s2[:bandwidth].to_i }.each do |stream|
         res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{stream[:bandwidth].to_i * 1000}\n"
-        res += File.join('.', stream[:path]) + "\n"
+        res += stream[:path] + "\n"
       end
       res += "#EXT-X-ENDLIST"
       File.open(File.join(playlist.work_dir, playlist.filename), 'w') { |f| f.write res }
