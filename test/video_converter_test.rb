@@ -62,6 +62,11 @@ class VideoConverterTest < Test::Unit::TestCase
         assert File.read(playlist).include?('r200.m3u8')
         assert File.read(playlist).include?('r300.m3u8')
       end
+      should 'clear tmp files' do
+        [200, 300, 500, 700].each do |q|
+          assert !File.exists?(File.join(@work_dir, "r#{q}.ts"))
+        end
+      end
     end
 
     context 'only segment some files' do
@@ -78,7 +83,7 @@ class VideoConverterTest < Test::Unit::TestCase
           {:path => @input4, :type => :segmented, :filename => '4.m3u8', :copy_video => true}, 
           {:type => :playlist, :streams => [{:path => '1.m3u8'}, {:path => '2.m3u8'}], :filename => 'playlist1.m3u8'}, 
           {:type => :playlist, :streams => [{:path => '3.m3u8'}, {:path => '4.m3u8'}], :filename => 'playlist2.m3u8'}
-        ])
+        ], :clear_tmp => false)
         @res = @c2.run
         @work_dir = File.join(VideoConverter::Output.work_dir, @c2.uid)
       end

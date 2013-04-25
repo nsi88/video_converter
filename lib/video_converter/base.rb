@@ -2,7 +2,7 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input_array, :output_array, :log, :uid
+    attr_accessor :input_array, :output_array, :log, :uid, :clear_tmp
 
     def initialize params
       self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
@@ -15,6 +15,7 @@ module VideoConverter
         self.log = params[:log]
         FileUtils.mkdir_p File.dirname(log)
       end
+      self.clear_tmp = params[:clear_tmp].nil? ? true : params[:clear_tmp]
     end
 
     def run
@@ -23,6 +24,7 @@ module VideoConverter
       process.pid = `cat /proc/self/stat`.split[3]
       actions = []
       actions = [:convert, :segment]
+      actions << :clear if clear_tmp
       actions.each do |action|
         process.status = action.to_s
         process.progress = 0
@@ -54,6 +56,14 @@ module VideoConverter
         params[param] = self.send(param)
       end
       LiveSegmenter.new(params).run
+    end
+
+    def clear
+      output_array.outputs.each do |output|
+        FileUtils.rm(Dir.glob(File.join(output.work_dir, '*.log')))
+        FileUtils.rm(Dir.glob(File.join(output.work_dir, '*.log.mbtree')))
+        FileUtils.rm(File.join(output.work_dir, output.filename.sub(/\.m3u8$/, '.ts'))) if output.type == :segmented
+      end
     end
   end
 end
