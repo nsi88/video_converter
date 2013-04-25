@@ -64,6 +64,7 @@ module VideoConverter
         FileUtils.rm(Dir.glob(File.join(output.work_dir, '*.log.mbtree')))
         FileUtils.rm(File.join(output.work_dir, output.filename.sub(/\.m3u8$/, '.ts'))) if output.type == :segmented
       end
+      true
     end
   end
 end
