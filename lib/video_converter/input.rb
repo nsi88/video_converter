@@ -18,7 +18,7 @@ module VideoConverter
     end
 
     def to_s
-      input
+      input.gsub(/ /, "\\ ")
     end
 
     def exists?
@@ -83,7 +83,7 @@ module VideoConverter
     private
 
     def common_params
-      { :bin => VideoConverter::Ffmpeg.bin, :input => input }
+      { :bin => VideoConverter::Ffmpeg.bin, :input => to_s }
     end
   end
 end
