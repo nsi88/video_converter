@@ -23,7 +23,7 @@ module VideoConverter
       process.status = 'started'
       process.pid = `cat /proc/self/stat`.split[3]
       actions = []
-      actions = [:convert, :segment]
+      actions = [:convert, :segment, :screenshot]
       actions << :clear if clear_tmp
       actions.each do |action|
         process.status = action.to_s
@@ -56,6 +56,15 @@ module VideoConverter
         params[param] = self.send(param)
       end
       LiveSegmenter.new(params).run
+    end
+
+    def screenshot
+      output_array.outputs.each do |output|
+        output.thumbnails.to_a.each do |thumbnail_params|
+          VideoScreenshoter.new(thumbnail_params.merge(:input => File.join(output.work_dir, output.filename.sub(/\.m3u8/, '.ts')), :output_dir => File.join(output.work_dir, 'thumbnails'))).make_screenshots
+        end
+      end
+      true
     end
 
     def clear

@@ -16,7 +16,7 @@ module VideoConverter
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path
+    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path, :thumbnails
 
     def initialize params = {}
       self.uid = params[:uid].to_s
@@ -63,6 +63,9 @@ module VideoConverter
       # Format and codecs
       self.video_codec = (params[:copy_video] ? 'copy' : params[:video_codec]) || self.class.video_codec
       self.audio_codec = (params[:copy_audio] ? 'copy' : params[:audio_codec]) || self.class.audio_codec
+
+      #Thumbnails
+      self.thumbnails = params[:thumbnails]
     end
 
     def to_hash

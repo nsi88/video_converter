@@ -6,6 +6,7 @@ class VideoConverterTest < Test::Unit::TestCase
       @input_file = 'test/fixtures/test.mp4'
       @input_url = 'http://techslides.com/demos/sample-videos/small.mp4'
     end
+
     context 'with default type' do
       setup do
         @c = VideoConverter.new('input' => @input_file, 'output' => [{'video_bitrate' => 300, 'filename' => 'tmp/test1.mp4'}, {'video_bitrate' => 700, :filename => 'tmp/test2.mp4'}], 'log' => 'tmp/test.log')
@@ -115,6 +116,22 @@ class VideoConverterTest < Test::Unit::TestCase
         assert_equal VideoConverter::Input.new(@input2).metadata[:video_bitrate_in_kbps], VideoConverter::Input.new(File.join(@work_dir, '2.ts')).metadata[:video_bitrate_in_kbps]
         assert_equal VideoConverter::Input.new(@input3).metadata[:video_bitrate_in_kbps], VideoConverter::Input.new(File.join(@work_dir, '3.ts')).metadata[:video_bitrate_in_kbps]
         assert_equal VideoConverter::Input.new(@input4).metadata[:video_bitrate_in_kbps], VideoConverter::Input.new(File.join(@work_dir, '4.ts')).metadata[:video_bitrate_in_kbps]
+      end
+    end
+
+    context 'thumbnails' do
+      setup do
+        @c = VideoConverter.new(:input => @input_file, :output => [{:filename => 'test1.mp4'}, {:filename => 'test2.mp4', :thumbnails => [{:times => [1,'50%',-1]}]}])
+        @c.run
+      end
+      should 'create thumbnails' do
+        3.times do |n|
+          assert File.exists? File.join(@c.output_array.outputs.first.work_dir, 'thumbnails', "scr00#{n + 1}.jpg")
+        end
+      end
+      should 'convert outputs' do
+        assert File.exists? File.join(@c.output_array.outputs.first.work_dir, 'test1.mp4')
+        assert File.exists? File.join(@c.output_array.outputs.first.work_dir, 'test2.mp4')
       end
     end
   end
