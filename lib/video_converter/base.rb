@@ -61,7 +61,7 @@ module VideoConverter
     def screenshot
       output_array.outputs.each do |output|
         output.thumbnails.to_a.each do |thumbnail_params|
-          VideoScreenshoter.new(thumbnail_params.merge(:input => File.join(output.work_dir, output.filename.sub(/\.m3u8/, '.ts')), :output_dir => File.join(output.work_dir, 'thumbnails'))).make_screenshots
+          VideoScreenshoter.new(thumbnail_params.merge(:ffmpeg => Ffmpeg.bin, :input => File.join(output.work_dir, output.filename.sub(/\.m3u8/, '.ts')), :output_dir => File.join(output.work_dir, 'thumbnails'))).make_screenshots
         end
       end
       true
