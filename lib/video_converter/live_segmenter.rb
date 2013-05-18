@@ -13,7 +13,7 @@ module VideoConverter
     self.log = '/dev/null'
     self.paral = true
 
-    self.chunks_command = '%{ffmpeg_bin} -f mp4 -i %{local_path} -vcodec libx264 -acodec copy -f mpegts -bsf h264_mp4toannexb pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
+    self.chunks_command = '%{ffmpeg_bin} -f mp4 -i %{local_path} -vcodec copy -acodec copy -f mpegts -bsf h264_mp4toannexb pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
     attr_accessor :paral, :chunk_prefix, :encoding_profile, :log, :output_array
 
