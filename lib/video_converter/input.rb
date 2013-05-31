@@ -18,7 +18,7 @@ module VideoConverter
     end
 
     def to_s
-      input.gsub(/ /, "\\ ")
+      Shellwords.escape(input)
     end
 
     def exists?

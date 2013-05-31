@@ -11,6 +11,7 @@ require "video_converter/output_array"
 require "fileutils"
 require "net/http"
 require "video_screenshoter"
+require "shellwords"
 
 module VideoConverter
   class << self

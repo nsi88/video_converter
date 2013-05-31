@@ -8,7 +8,7 @@ module VideoConverter
       self.inputs = (inputs.is_a?(Array) ? inputs : [inputs]).map { |input| Input.new(input) }
       output_array.outputs.each do |output|
         if [:standard, :segmented].include? output.type
-          self.inputs[self.inputs.index { |input| input.to_s == output.path.to_s.gsub(/ /, "\\ ") }.to_i].outputs << output
+          self.inputs[self.inputs.index { |input| input.to_s == Shellwords.escape(output.path.to_s) }.to_i].outputs << output
         end
       end
       self.inputs.each do |input|
