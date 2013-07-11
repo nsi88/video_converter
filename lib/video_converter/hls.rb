@@ -2,16 +2,12 @@
 
 module VideoConverter
   class Hls
-    attr_accessor :ffmpeg_bin, :input, :output, :playlist_dir, :log, :verbose
+    attr_accessor :ffmpeg_bin, :input, :output, :chunks_dir, :log, :verbose
 
     def initialize params
       self.ffmpeg_bin = params[:ffmpeg_bin] || Ffmpeg.bin
       %w(input output).each { |param| self.send("#{param}=", params[param.to_sym]) or raise "#{param} is needed" }
-      self.playlist_dir = if params[:playlist_dir]
-        params[:playlist_dir]
-      elsif !input.match(/^https?:\/\//)
-        File.dirname(input)
-      end
+      self.chunks_dir = params[:chunks_dir]
       self.log = params[:log] || '/dev/null'
       self.verbose = params[:verbose]
     end
@@ -24,12 +20,16 @@ module VideoConverter
       concat_file = File.join(output_dir, 'concat.ts')
       `rm #{concat_file}` if File.exists? concat_file
       chunks.each do |chunk|
-        if playlist_dir && File.exists?(local_chunk = File.join(playlist_dir, chunk))
-          puts "Copy #{local_chunk} to #{concat_file}" if verbose
+        if chunks_dir && File.exists?(local_chunk = File.join(chunks_dir, File.basename(chunk)))
+          message = "Copy #{local_chunk} to #{concat_file}"
+          puts message if verbose
+          yield message if block_given?
           `cat #{local_chunk} >> #{concat_file}`
         else
           chunk = File.join(File.dirname(input), chunk) unless chunk.match(/(^https?:\/\/)|(^\/)/)
-          puts "Download #{chunk} to #{concat_file}" if verbose
+          message = "Download #{chunk} to #{concat_file}"
+          puts message if verbose
+          yield message if block_given?
           `cd #{output_dir} && wget #{chunk} 1>>%{log} 2>&1 && cat #{File.basename(chunk)} >> #{concat_file} && rm #{File.basename(chunk)}` 
         end
       end
