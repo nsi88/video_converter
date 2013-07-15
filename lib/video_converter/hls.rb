@@ -2,12 +2,17 @@
 
 module VideoConverter
   class Hls
-    attr_accessor :ffmpeg_bin, :input, :output, :chunks_dir, :log, :verbose
+    attr_accessor :ffmpeg_bin, :input, :output, :chunks_dir, :replace_in_chunk, :log, :verbose
 
     def initialize params
       self.ffmpeg_bin = params[:ffmpeg_bin] || Ffmpeg.bin
       %w(input output).each { |param| self.send("#{param}=", params[param.to_sym]) or raise "#{param} is needed" }
-      self.chunks_dir = params[:chunks_dir]
+      self.chunks_dir = if params[:chunks_dir]
+        params[:chunks_dir]
+      elsif !input.match(/^https?:\/\//)
+        File.dirname(input)
+      end
+      self.replace_in_chunk = params[:replace_in_chunk]
       self.log = params[:log] || '/dev/null'
       self.verbose = params[:verbose]
     end
@@ -20,7 +25,12 @@ module VideoConverter
       concat_file = File.join(output_dir, 'concat.ts')
       `rm #{concat_file}` if File.exists? concat_file
       chunks.each do |chunk|
-        if chunks_dir && File.exists?(local_chunk = File.join(chunks_dir, File.basename(chunk)))
+        local_chunk = if chunks_dir
+          File.join(chunks_dir, File.basename(chunk))
+        elsif replace_in_chunk
+          chunk.sub(replace_in_chunk.first, replace_in_chunk.last)
+        end
+        if local_chunk && File.exists?(local_chunk)
           message = "Copy #{local_chunk} to #{concat_file}"
           puts message if verbose
           yield message if block_given?
