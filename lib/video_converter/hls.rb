@@ -26,7 +26,7 @@ module VideoConverter
       `rm #{concat_file}` if File.exists? concat_file
       chunks.each do |chunk|
         local_chunk = if chunks_dir
-          File.join(chunks_dir, File.basename(chunk))
+          File.join(chunks_dir, chunk)
         elsif replace_in_chunk
           chunk.sub(replace_in_chunk.first, replace_in_chunk.last)
         end
@@ -40,7 +40,7 @@ module VideoConverter
           message = "Download #{chunk} to #{concat_file}"
           puts message if verbose
           yield message if block_given?
-          `cd #{output_dir} && wget #{chunk} 1>>%{log} 2>&1 && cat #{File.basename(chunk)} >> #{concat_file} && rm #{File.basename(chunk)}` 
+          `cd #{output_dir} && wget #{chunk} 1>>#{log} 2>&1 && cat #{File.basename(chunk)} >> #{concat_file} && rm #{File.basename(chunk)}` 
         end
       end
       raise "Cannot download chunks from #{input}" unless File.exists?(concat_file) && File.size(concat_file) > 0
