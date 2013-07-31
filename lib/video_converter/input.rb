@@ -18,7 +18,7 @@ module VideoConverter
     end
 
     def to_s
-      Shellwords.escape(input)
+      Shellwords.escape(input).gsub("\\\\","\\")
     end
 
     def exists?
@@ -83,7 +83,7 @@ module VideoConverter
     private
 
     def common_params
-      { :bin => VideoConverter::Ffmpeg.bin, :input => to_s }
+      { :bin => VideoConverter::Ffmpeg.bin, :input => input }
     end
   end
 end
