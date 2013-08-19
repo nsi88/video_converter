@@ -13,7 +13,7 @@ module VideoConverter
     def initialize command, params = {}
       res = command.clone
       params.each do |param, value|
-        res.gsub! "%{#{param}}", value.to_s.empty? ? '' : Shellwords.escape(value.to_s).gsub("\\\\","\\").gsub(/(?<!\\)'/, "\\\\'")
+        res.gsub! "%{#{param}}", value.to_s.empty? ? '' : Shellwords.escape(value.to_s.gsub(/(?<!\\)'/, "\\\\'")).gsub("\\\\","\\")
       end
       self.command = res
       raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.match(/%{[\w\-.]+}/)
