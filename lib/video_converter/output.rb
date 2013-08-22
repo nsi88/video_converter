@@ -16,7 +16,7 @@ module VideoConverter
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path, :thumbnails
+    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path, :thumbnails, :frame_rate, :size, :width, :height
 
     def initialize params = {}
       self.uid = params[:uid].to_s
@@ -59,17 +59,23 @@ module VideoConverter
 
       # Frame rate
       self.keyframe_interval = params[:keyframe_interval].to_i > 0 ? params[:keyframe_interval].to_i : self.class.keyframe_interval
+      self.frame_rate = params[:frame_rate].to_i if params[:frame_rate]
 
       # Format and codecs
       self.video_codec = (params[:copy_video] ? 'copy' : params[:video_codec]) || self.class.video_codec
       self.audio_codec = (params[:copy_audio] ? 'copy' : params[:audio_codec]) || self.class.audio_codec
+
+      # Resolution
+      self.size = params[:size]
+      self.width = params[:width]
+      self.height = params[:height]
 
       #Thumbnails
       self.thumbnails = params[:thumbnails]
     end
 
     def to_hash
-      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec]
+      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :frame_rate, :threads, :video_codec, :audio_codec, :size, :width, :height]
       Hash[*keys.map{ |key| [key, self.send(key)] }.flatten]
     end
 

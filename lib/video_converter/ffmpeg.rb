@@ -11,11 +11,11 @@ module VideoConverter
     self.paral = true
     self.log = '/dev/null'
     
-    self.one_pass_command = "%{bin} -i %{input} -y -acodec copy -vcodec %{video_codec} -g 100 -keyint_min 50 -b:v %{video_bitrate}k -bt %{video_bitrate}k -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
+    self.one_pass_command = "%{bin} -i %{input} -y -acodec copy -vcodec %{video_codec} -g 100 -keyint_min 50 -b:v %{video_bitrate}k -bt %{video_bitrate}k %{vf} %{frame_rate} -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
 
-    self.first_pass_command = "%{bin} -i %{input} -y -an -vcodec %{video_codec} -g %{keyframe_interval} -keyint_min 25 -pass 1 -passlogfile %{passlogfile} -b:v 700k -threads %{threads} -f mp4 /dev/null 1>>%{log} 2>&1 || exit 1"
+    self.first_pass_command = "%{bin} -i %{input} -y -an -vcodec %{video_codec} -g %{keyframe_interval} -keyint_min 25 -pass 1 -passlogfile %{passlogfile} -b:v 700k %{vf} %{frame_rate} -threads %{threads} -f mp4 /dev/null 1>>%{log} 2>&1 || exit 1"
 
-    self.second_pass_command = "%{bin} -i %{input} -y -pass 2 -passlogfile %{passlogfile} -c:a %{audio_codec} -b:a %{audio_bitrate}k -c:v %{video_codec} -g %{keyframe_interval} -keyint_min 25 %{frame_rate} -b:v %{video_bitrate}k %{size} -threads %{threads} -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
+    self.second_pass_command = "%{bin} -i %{input} -y -pass 2 -passlogfile %{passlogfile} -c:a %{audio_codec} -b:a %{audio_bitrate}k -c:v %{video_codec} -g %{keyframe_interval} -keyint_min 25 %{frame_rate} -b:v %{video_bitrate}k %{vf} -threads %{threads} -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
 
     attr_accessor :input_array, :output_array, :one_pass, :paral, :log
 
@@ -64,7 +64,13 @@ module VideoConverter
     end
 
     def prepare_params params
-      params[:size] = params[:size] ? "-s #{params[:size]}" : ''
+      width = params[:width] || params[:size].to_s.match(/^(\d+)x(\d*)$/).to_a[1] || -1
+      height = params[:height] || params[:size].to_s.match(/^(\d*)x(\d+)$/).to_a[2] || -1
+      if width == -1 && height == -1
+        params[:vf] = ''
+      else
+        params[:vf] = "-vf scale=#{width}:#{height}"
+      end
       params[:frame_rate] = params[:frame_rate] ? "-r #{params[:frame_rate]}" : ''
       params
     end
