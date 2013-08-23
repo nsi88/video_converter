@@ -2,7 +2,7 @@
 
 module VideoConverter
   class Base
-    attr_accessor :input_array, :output_array, :log, :uid, :clear_tmp
+    attr_accessor :input_array, :output_array, :log, :uid, :clear_tmp, :process
 
     def initialize params
       self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
@@ -19,24 +19,13 @@ module VideoConverter
     end
 
     def run
-      process = VideoConverter::Process.new(uid)
-      process.status = 'started'
-      process.pid = `cat /proc/self/stat`.split[3]
-      actions = []
-      actions = [:convert, :segment, :screenshot]
-      actions << :clear if clear_tmp
-      actions.each do |action|
+      self.process = VideoConverter::Process.new(uid, output_array)
+      [:convert, :segment, :screenshot].each do |action|
         process.status = action.to_s
-        process.progress = 0
-        res = send action
-        if res
-          process.status = "#{action}_success"
-        else
-          process.status = "#{action}_error"
-          return false
-        end
+        process.status = "#{action}_error" and return false unless send(action)
       end
       process.status = 'finished'
+      clear if clear_tmp
       true
     end
 
@@ -44,7 +33,7 @@ module VideoConverter
 
     def convert
       params = {}
-      [:input_array, :output_array, :log].each do |param|
+      [:input_array, :output_array, :log, :process].each do |param|
         params[param] = self.send(param)
       end
       Ffmpeg.new(params).run
@@ -73,6 +62,7 @@ module VideoConverter
         FileUtils.rm(Dir.glob(File.join(output.work_dir, '*.log.mbtree')))
         FileUtils.rm(File.join(output.work_dir, output.filename.sub(/\.m3u8$/, '.ts'))) if output.type == :segmented
       end
+      FileUtils.rm_r(process.process_dir)
       true
     end
   end

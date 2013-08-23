@@ -18,7 +18,6 @@ module VideoConverter
   class << self
     attr_accessor :paral
   end
-  
   self.paral = true
 
   def self.new params
@@ -26,7 +25,7 @@ module VideoConverter
   end
 
   def self.find uid
-    VideoConverter::Process.new uid
+    VideoConverter::Process.find uid
   end
 end
 
