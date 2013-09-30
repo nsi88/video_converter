@@ -38,7 +38,7 @@ module VideoConverter
     def metadata
       metadata = {}
       s = `#{Command.new self.class.metadata_command, common_params}`.encode!('UTF-8', 'UTF-8', :invalid => :replace)
-      if (m = s.match(/Stream.*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s$/).to_a).any?
+      if (m = s.match(/Stream.*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/).to_a).any?
         metadata[:audio_codec] = m[1]
         metadata[:audio_sample_rate] = m[2].to_i
         metadata[:audio_bitrate_in_kbps] = m[3].to_i
