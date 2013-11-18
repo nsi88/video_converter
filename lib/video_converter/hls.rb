@@ -24,7 +24,8 @@ module VideoConverter
       `mkdir -p #{output_dir}` unless Dir.exists?(output_dir)
       concat_file = File.join(output_dir, 'concat.ts')
       `rm #{concat_file}` if File.exists? concat_file
-      chunks.each do |chunk|
+      need_reconvert = false
+      chunks.each_with_index do |chunk, chunk_index|
         local_chunk = if chunks_dir
           File.join(chunks_dir, chunk)
         elsif replace_in_chunk
@@ -36,6 +37,9 @@ module VideoConverter
           yield message if block_given?
           `cat #{local_chunk} >> #{concat_file}`
         else
+          # NOTE because of troubles with timestamps
+          need_reconvert = true unless [0,chunks.count].include?(chunk_index)
+
           chunk = File.join(File.dirname(input), chunk) unless chunk.match(/(^https?:\/\/)|(^\/)/)
           message = "Download #{chunk} to #{concat_file}"
           puts message if verbose
@@ -45,7 +49,10 @@ module VideoConverter
       end
       raise "Cannot download chunks from #{input}" unless File.exists?(concat_file) && File.size(concat_file) > 0
       puts "Convert #{concat_file}" if verbose
-      `#{ffmpeg_bin} -i #{concat_file} -vcodec copy -acodec copy -f mpegts pipe:1 2>>/dev/null | #{ffmpeg_bin} -y -i - -acodec copy -vcodec copy -absf aac_adtstoasc -f mp4 #{output} 1>>#{log} 2>&1`
+      cmd = "#{ffmpeg_bin} -i #{concat_file} -vcodec copy -acodec copy -f mpegts pipe:1 2>>/dev/null | #{ffmpeg_bin} -y -i - -acodec copy -vcodec #{need_reconvert ? 'libx264' : 'copy'} -absf aac_adtstoasc -f mp4 #{output} 1>>#{log} 2>&1"
+      puts cmd if verbose
+      yield cmd if block_given?
+      `#{cmd}`
       `rm #{concat_file}`
       output
     end
