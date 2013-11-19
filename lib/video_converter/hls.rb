@@ -38,7 +38,7 @@ module VideoConverter
           `cat #{local_chunk} >> #{concat_file}`
         else
           # NOTE because of troubles with timestamps
-          need_reconvert = true unless [0,chunks.count].include?(chunk_index)
+          need_reconvert = true unless [0,chunks.count-1].include?(chunk_index)
 
           chunk = File.join(File.dirname(input), chunk) unless chunk.match(/(^https?:\/\/)|(^\/)/)
           message = "Download #{chunk} to #{concat_file}"
