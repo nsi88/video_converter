@@ -11,7 +11,7 @@ module VideoConverter
     self.collect_progress_interval = 10
 
     def self.find uid
-      if Dir.exists?(File.join(process_dir, uid))
+      if Dir.exists?(File.join(process_dir, uid.to_s))
         new uid
       else
         nil
@@ -19,7 +19,7 @@ module VideoConverter
     end
 
     def initialize uid, output_array = nil
-      self.uid = uid
+      self.uid = uid.to_s
       self.process_dir = File.join(self.class.process_dir, uid)
 
       unless Dir.exists? process_dir
