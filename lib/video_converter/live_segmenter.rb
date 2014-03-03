@@ -3,7 +3,7 @@
 module VideoConverter
   class LiveSegmenter
     class << self
-      attr_accessor :bin, :ffprobe_bin, :chunks_command, :chunk_prefix, :encoding_profile, :log, :paral
+      attr_accessor :bin, :ffprobe_bin, :chunks_command, :chunk_prefix, :encoding_profile, :log, :paral, :select_streams
     end
     
     self.bin = '/usr/local/bin/live_segmenter'
@@ -12,6 +12,7 @@ module VideoConverter
     self.encoding_profile = 's'
     self.log = '/dev/null'
     self.paral = true
+    self.select_streams = 'v'
 
     self.chunks_command = '%{ffmpeg_bin} -f mp4 -i %{local_path} -vcodec copy -acodec copy -f mpegts -bsf h264_mp4toannexb pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
@@ -53,10 +54,20 @@ module VideoConverter
     def gen_quality_playlist output
       res = ''
       durations = []
-      Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).sort { |c1, c2| File.basename(c1).match(/\d+/).to_s.to_i <=> File.basename(c2).match(/\d+/).to_s.to_i }.each do |chunk|
-        durations << (duration = chunk_duration chunk)
-        res += "#EXTINF:%0.2f,\n" % duration
-        res += File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n"
+      # order desc
+      chunks = Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).sort do |c1, c2| 
+        File.basename(c2).match(/\d+/).to_s.to_i <=> File.basename(c1).match(/\d+/).to_s.to_i
+      end
+      # chunk duration = (pts of first frame of the next chunk - pts of first frame of current chunk) / time_base
+      # for the last chunks the last two pts are used
+      prl_pts, l_pts = `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunks.first} | tail -n2 2>&1`.split("\n").map { |l| l.split(',')[3].to_i }
+      next_chunk_pts = 2 * l_pts - prl_pts
+      chunks.each do |chunk|
+        durations << (duration = (next_chunk_pts - (next_chunk_pts = 
+          `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunk} | head -n1 2>&1`.split(',')[3].to_i
+        )) / `#{self.class.ffprobe_bin} -show_streams -select_streams #{self.class.select_streams} -loglevel fatal #{chunk} 2>&1`.match(/\ntime_base=1\/(\d+)/)[1].to_f)
+        res = File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n" + res
+        res = "#EXTINF:%0.2f,\n" % duration + res
       end
       res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
       File.open(File.join(output.work_dir, output.filename), 'w') { |f| f.write res }
@@ -75,10 +86,6 @@ module VideoConverter
 
     def common_params
       { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin, :log => log, :chunk_prefix => chunk_prefix, :encoding_profile => encoding_profile }
-    end
-
-    def chunk_duration chunk
-      s = `#{self.class.ffprobe_bin} #{chunk} 2>&1`.match(/Duration:.*(?:[0-9]{2}):(?:[0-9]{2}):([0-9]{2}(?:\.[0-9]{2})?)/).to_a[1].to_f
     end
   end
 end
