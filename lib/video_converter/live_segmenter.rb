@@ -62,10 +62,12 @@ module VideoConverter
       # for the last chunks the last two pts are used
       prl_pts, l_pts = `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunks.first} | tail -n2 2>&1`.split("\n").map { |l| l.split(',')[3].to_i }
       next_chunk_pts = 2 * l_pts - prl_pts
+      time_base = `#{self.class.ffprobe_bin} -show_streams -select_streams #{self.class.select_streams} -loglevel fatal #{chunks.first} 2>&1`.match(/\ntime_base=1\/(\d+)/)[1].to_f
       chunks.each do |chunk|
-        durations << (duration = (next_chunk_pts - (next_chunk_pts = 
-          `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunk} | head -n1 2>&1`.split(',')[3].to_i
-        )) / `#{self.class.ffprobe_bin} -show_streams -select_streams #{self.class.select_streams} -loglevel fatal #{chunk} 2>&1`.match(/\ntime_base=1\/(\d+)/)[1].to_f)
+        pts = `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunk} | head -n1 2>&1`.split(',')[3].to_i
+        durations << (duration = (next_chunk_pts - pts) / time_base)
+        puts "chunk: #{chunk}, duration: #{duration}, next_chunk_pts: #{next_chunk_pts}, pts: #{pts}"
+        next_chunk_pts = pts
         res = File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n" + res
         res = "#EXTINF:%0.2f,\n" % duration + res
       end
