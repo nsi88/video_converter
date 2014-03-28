@@ -3,99 +3,86 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :one_pass, :paral, :log, :one_pass_command, :first_pass_command, :second_pass_command
+      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command
     end
 
     self.bin = '/usr/local/bin/ffmpeg'
-    self.one_pass = false
-    self.paral = true
-    self.log = '/dev/null'
-    
-    self.one_pass_command = "%{bin} -i %{input} -y -acodec copy -vcodec %{video_codec} -g 100 -keyint_min 50 -b:v %{video_bitrate}k -bt %{video_bitrate}k %{vf} %{frame_rate} -progress %{progressfile} -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
+    self.ffprobe_bin = '/usr/local/bin/ffprobe'
+    self.options = {
+      :video_codec => '-c:v',
+      :audio_codec => '-c:a',
+      :keyframe_interval => '-g',
+      :passlogfile => '-passlogfile',
+      :video_bitrate => '-b:v',
+      :audio_bitrate => '-b:a',
+      :video_filter => '-vf',
+      :frame_rate => '-r',
+      :threads => '-threads',
+      :format => '-f',
+      :bitstream_format => '-bsf'
+    }
+    self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -keyint_min 25 -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
+    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 -keyint_min 25 -pix_fmt yuv420p %{options} %{output} 1>>%{log} 2>&1 || exit 1'
 
-    self.first_pass_command = "%{bin} -i %{input} -y -an -vcodec %{video_codec} -g %{keyframe_interval} -keyint_min 25 -pass 1 -passlogfile %{passlogfile} -progress %{progressfile} -b:v 3000k %{vf} %{frame_rate} -threads %{threads} -pix_fmt yuv420p -f mp4 /dev/null 1>>%{log} 2>&1 || exit 1"
+    attr_accessor :inputs, :outputs
 
-    self.second_pass_command = "%{bin} -i %{input} -y -pass 2 -passlogfile %{passlogfile} -progress %{progressfile} -c:a %{audio_codec} -b:a %{audio_bitrate}k -ac 2 -c:v %{video_codec} -g %{keyframe_interval} -keyint_min 25 %{frame_rate} -b:v %{video_bitrate}k %{vf} -threads %{threads} -pix_fmt yuv420p -f mp4 %{local_path} 1>%{log} 2>&1 || exit 1"
-
-    attr_accessor :input_array, :output_array, :one_pass, :paral, :log, :process
-
-    def initialize params
-      [:input_array, :output_array].each do |param|
-        self.send("#{param}=", params[param]) or raise ArgumentError.new("#{param} is needed")
-      end
-      [:one_pass, :paral, :log, :process].each do |param|
-        self.send("#{param}=", params[param] ? params[param] : self.class.send(param))
-      end
+    def initialize inputs, outputs
+      self.inputs = inputs
+      self.outputs = outputs
     end
 
+    # NOTE outputs of one group must have common first pass
     def run
-      progress_thread = Thread.new { collect_progress }
-      res = true
-      input_array.inputs.each do |input|
-        threads = []
-        input.output_groups.each_with_index do |group, group_number|
-          passlogfile = File.join(group.first.work_dir, "#{group_number}.log")
-          progressfile = File.join(process.progress_dir, "#{group_number}.log")
-          one_pass = self.one_pass || group.first.video_codec == 'copy'
-          unless one_pass
-            first_pass_command = Command.new self.class.first_pass_command, prepare_params(common_params.merge((group.first.playlist.to_hash rescue {})).merge(group.first.to_hash).merge(:passlogfile => passlogfile, :input => input, :progressfile => progressfile))
-            res &&= first_pass_command.execute
+      success = true
+      threads = []
+      inputs.each do |input|
+        input.output_groups.each do |group|
+          qualities = group.select { |output| output.type != 'playlist' }
+          # NOTE if all qualities in group contain one_pass, use one_pass_command for ffmpeg
+          unless one_pass = qualities.inject { |r, q| r && q.one_pass }
+            # NOTE first pass is executed with maximal group's video bitrate
+            best_quality = qualities.sort { |q1, q2| q1.video_bitrate.to_i <=> q2.video_bitrate.to_i }.last
+            success &&= Command.new(self.class.first_pass_command, prepare_params(input, best_quality)).execute
           end
-          group.each_with_index do |quality, quality_number|
-            progressfile = File.join(process.progress_dir, "#{group_number}_#{quality_number}.log")
-            if one_pass
-              quality_command = Command.new self.class.one_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile, :input => input, :progressfile => progressfile))
+          qualities.each do |output|
+            command = Command.new(one_pass ? self.class.one_pass_command : self.class.second_pass_command, prepare_params(input, output))
+            if VideoConverter.paral
+              threads << Thread.new { success &&= command.execute }
             else
-              quality_command = Command.new self.class.second_pass_command, prepare_params(common_params.merge(quality.to_hash).merge(:passlogfile => passlogfile, :input => input, :progressfile => progressfile))
-            end
-            if paral
-              threads << Thread.new { res &&= quality_command.execute }
-            else
-              res &&= quality_command.execute
+              success &&= command.execute
             end
           end
         end
-        threads.each { |t| t.join } if paral
       end
-      progress_thread.kill
-      res
+      threads.each { |t| t.join } if VideoConverter.paral
+      success
     end
-    
+
     private 
 
-    def common_params
-      { :bin => self.class.bin, :log => log }
-    end
-
-    def prepare_params params
-      width = params[:width] || params[:size].to_s.match(/^(\d+)x(\d*)$/).to_a[1] || 'trunc(oh*a/2)*2'
-      height = params[:height] || params[:size].to_s.match(/^(\d*)x(\d+)$/).to_a[2] || 'trunc(ow/a/2)*2'
-      if width.to_s.include?('trunc') && height.to_s.include?('trunc')
-        params[:vf] = ''
-      else
-        params[:vf] = "-vf scale=#{width}:#{height}"
+    def prepare_params input, output
+      if output.size
+        output.video_filter = "scale=#{output.size.sub('x', ':')}"
+      elsif output.width && output.size
+        output.video_filter = "scale=#{output.width}:#{output.height}"
+      elsif output.width
+        output.video_filter = "scale=#{output.width}:trunc\\(ow/a/2\\)*2"
+      elsif output.height
+        output.video_filter = "scale=trunc\\(oh*a/2\\)*2:#{output.height}"
       end
-      params[:frame_rate] = params[:frame_rate] ? "-r #{params[:frame_rate]}" : ''
-      params
-    end
 
-    def processes_count
-      (one_pass ? 0 : input_array.inputs.inject(0) { |sum, i| sum + i.output_groups.count }) +
-      input_array.inputs.map { |i| i.output_groups.map { |g| g.count } }.flatten.inject(:+)
-    end
-
-    def collect_progress
-      duration = input_array.inputs.first.metadata[:duration_in_ms]
-      loop do
-        sleep Process.collect_progress_interval
-        koefs = []
-        Dir.glob(File.join(process.progress_dir, '*.log')).each do |progressfile|
-          if matches = `tail -n 9 #{progressfile}`.match(/out_time_ms=(\d+).*?progress=(\w+)/m)
-            koefs << (matches[2] == 'end' ? 1 : (matches[1].to_f / 1000 / duration))
+      {
+        :bin => self.class.bin,
+        :input => input.to_s,
+        :log => VideoConverter.log,
+        :output => output.ffmpeg_output,
+        :options => self.class.options.map do |output_option, ffmpeg_option|
+          if output.send(output_option).present?
+            ffmpeg_option += ' ' + output.send(output_option).to_s
           end
-        end
-        process.collect_progress(koefs.inject { |sum, k| sum + k } / processes_count)
-      end
+        end.join(' ')
+      }
     end
   end
 end

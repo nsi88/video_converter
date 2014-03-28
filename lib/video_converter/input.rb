@@ -6,19 +6,28 @@ module VideoConverter
       attr_accessor :metadata_command
     end
 
-    self.metadata_command = "%{bin} -i %{input} 2>&1"
+    self.metadata_command = "%{ffprobe_bin} %{input} 2>&1"
 
-    attr_accessor :input, :outputs, :output_groups
+    attr_accessor :input, :output_groups
 
-    def initialize input
-      raise ArgumentError.new('input is needed') if input.nil? || input.empty?
+    def initialize input, outputs = []
+      raise ArgumentError.new('input is needed') if input.blank?
       self.input = input
-      self.outputs = []
+      raise ArgumentError.new("#{input} does not exist") unless exists?
+
       self.output_groups = []
+      outputs.select { |output| output.type == 'playlist' }.each_with_index do |playlist, index|
+        paths = playlist.streams.map { |stream| stream[:path] }
+        output_group = outputs.select { |output| paths.include?(output.filename) && (!output.path || output.path == input.to_s) }
+        if output_group.any?
+          output_group.each { |output| output.passlogfile = File.join(output.work_dir, "group#{index}.log") }
+          self.output_groups << output_group.unshift(playlist) 
+        end
+      end
     end
 
     def to_s
-      Shellwords.escape(input).gsub("\\\\","\\")
+      input
     end
 
     def exists?
@@ -28,16 +37,14 @@ module VideoConverter
           response = http.request_head url.path
           Net::HTTPSuccess === response
         end
-      elsif is_local?
-        File.file? input
       else
-        false
+        is_local?
       end
     end
 
     def metadata
       metadata = {}
-      s = `#{Command.new self.class.metadata_command, common_params}`.encode!('UTF-8', 'UTF-8', :invalid => :replace)
+      s = `#{Command.new self.class.metadata_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input}`.encode!('UTF-8', 'UTF-8', :invalid => :replace)
       if (m = s.match(/Stream.*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/).to_a).any?
         metadata[:audio_codec] = m[1]
         metadata[:audio_sample_rate] = m[2].to_i
@@ -65,7 +72,7 @@ module VideoConverter
             metadata[:file_size_in_bytes] = response['content-length'].to_i
           end
         elsif is_local?
-          metadata[:file_size_in_bytes] = File.size(input)
+          metadata[:file_size_in_bytes] = File.size(input.gsub('\\', ''))
         end
         metadata[:format] = File.extname(input).sub('.', '')
       end
@@ -77,13 +84,8 @@ module VideoConverter
     end
 
     def is_local?
-      File.file?(input)
-    end
-
-    private
-
-    def common_params
-      { :bin => VideoConverter::Ffmpeg.bin, :input => input }
+      # NOTE method file escapes himself
+      File.file?(input.gsub('\\', ''))
     end
   end
 end

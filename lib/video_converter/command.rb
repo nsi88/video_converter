@@ -3,36 +3,21 @@
 module VideoConverter
   class Command
     class << self
-      attr_accessor :debug, :verbose
+      attr_accessor :dry_run, :verbose
     end
-    self.debug = false
+    self.dry_run = false
     self.verbose = false
 
     attr_accessor :command
 
     def initialize command, params = {}
-      res = command.clone
-      params.each do |param, value|
-        value = value.to_s.strip
-        res.gsub! "%{#{param}}", if value.empty?
-          ''
-        elsif matches = value.match(/^([\w-]+)\s+(.+)$/)
-          "#{matches[1]} #{escape(matches[2])}"
-        else
-          escape(value)
-        end
-      end
-      self.command = res
+      self.command = command.gsub(/%\{(\w+?)\}/) { |m| params[$1.to_sym] }
       raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.match(/%{[\w\-.]+}/)
-    end
-
-    def escape value
-      Shellwords.escape(value.to_s.gsub(/(?<!\\)(['+])/, '\\\\\1')).gsub("\\\\","\\")
     end
 
     def execute params = {}
       puts command if params[:verbose] || self.class.verbose
-      if params[:debug] || self.class.debug
+      if params[:dry_run] || self.class.dry_run
         true
       else
         system command

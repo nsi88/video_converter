@@ -3,67 +3,65 @@
 module VideoConverter
   class Output
     class << self
-      attr_accessor :base_url, :work_dir, :video_bitrate, :audio_bitrate, :segment_seconds, :keyframe_interval, :threads, :video_codec, :audio_codec
+      attr_accessor :work_dir, :keyframe_interval, :threads, :video_codec, :audio_codec
     end
 
-    self.base_url = '/tmp'
     self.work_dir = '/tmp'
-    self.video_bitrate = 700
-    self.audio_bitrate = 200
-    self.segment_seconds = 10
     self.keyframe_interval = 250
     self.threads = 1
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
 
-    attr_accessor :type, :url, :base_url, :filename, :format, :video_bitrate, :uid, :streams, :work_dir, :local_path, :playlist, :items, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :threads, :video_codec, :audio_codec, :path, :thumbnails, :frame_rate, :size, :width, :height
+    attr_accessor :uid, :work_dir, :threads, :passlogfile
+    attr_accessor :type, :filename
+    attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format
+    attr_accessor :one_pass, :video_bitrate, :audio_bitrate
+    attr_accessor :streams, :path, :chunks_dir
+    attr_accessor :keyframe_interval, :frame_rate
+    attr_accessor :size, :width, :height, :video_filter
+    attr_accessor :thumbnails
+                  
 
     def initialize params = {}
+      # Inner
       self.uid = params[:uid].to_s
+      self.work_dir = File.join(self.class.work_dir, uid)
+      FileUtils.mkdir_p(work_dir)
+      self.threads = params[:threads] || self.class.threads
 
       # General output options
-      self.type = params[:type] ? params[:type].to_sym : :standard
-      raise ArgumentError.new('Incorrect type') unless %w(standard segmented playlist transfer-only).include?(type.to_s)
+      self.type = params[:type]
+      raise ArgumentError.new('Incorrect type') if type && !%w(default segmented playlist).include?(type)
+      self.filename = params[:filename] or raise ArgumentError.new('filename required')
 
-      self.format = params[:format]
-      if !format && params[:filename]
-        self.format = File.extname(params[:filename]).sub('.', '')
+      # Formats and codecs
+      if type == 'segmented'
+        self.format = 'mpegts'
+        self.ffmpeg_output = File.join(work_dir, File.basename(filename, '.*') + '.ts')
+      else
+        self.format = File.extname(filename).sub('.', '')
+        self.ffmpeg_output = File.join(work_dir, filename)
       end
-      if format == 'm3u8' || !format && type == :segmented
-        self.format = 'ts'
-      end
-      self.format = 'mp4' if format.nil? || format.empty?
-      raise ArgumentError.new('Incorrect format') unless %w(3g2 3gp 3gp2 3gpp 3gpp2 aac ac3 eac3 ec3 f4a f4b f4v flv highwinds m4a m4b m4r m4v mkv mov mp3 mp4 oga ogg ogv ogx ts webm wma wmv).include?(format)
-      
-      self.base_url = (params[:url] ? File.dirname(params[:url]) : params[:base_url]) || self.class.base_url
-      self.filename = (params[:url] ? File.basename(params[:url]) : params[:filename]) || self.uid + '.' + self.format
-      self.url = params[:url] ? params[:url] : File.join(base_url, filename)
-      self.work_dir = File.join(params[:work_dir] || self.class.work_dir, uid)
-      format_regexp = Regexp.new("#{File.extname(filename)}$")
-      self.local_path = File.join(work_dir, filename.sub(format_regexp, ".#{format}"))
-      FileUtils.mkdir_p File.dirname(local_path)
-      if type == :segmented
-        self.chunks_dir = File.join(work_dir, filename.sub(format_regexp, ''))
-        FileUtils.mkdir_p chunks_dir
-      end
-      self.threads = self.class.threads
-      self.path = params[:path]
+      self.video_codec = params[:video_codec] || self.class.video_codec
+      self.audio_codec = params[:audio_codec] || self.class.audio_codec
+      self.bitstream_format = params[:bitstream_format]
 
       # Rate controle
-      self.video_bitrate = params[:video_bitrate].to_i > 0 ? params[:video_bitrate].to_i : self.class.video_bitrate
-      self.audio_bitrate = params[:audio_bitrate].to_i > 0 ? params[:audio_bitrate].to_i : self.class.audio_bitrate
+      self.one_pass = !!params[:one_pass]
+      self.video_bitrate = "#{params[:video_bitrate]}k" if params[:video_bitrate]
+      self.audio_bitrate = "#{params[:audio_bitrate]}k" if params[:audio_bitrate]
 
       # Segmented streaming
-      self.streams = params[:streams].to_a
-      self.segment_seconds = params[:segment_seconds] || self.class.segment_seconds
+      self.streams = params[:streams]
+      self.path = params[:path]
+      if type == 'segmented'
+        self.chunks_dir = File.join(work_dir, File.basename(filename, '.*'))
+        FileUtils.mkdir_p(chunks_dir)
+      end
 
       # Frame rate
-      self.keyframe_interval = params[:keyframe_interval].to_i > 0 ? params[:keyframe_interval].to_i : self.class.keyframe_interval
-      self.frame_rate = params[:frame_rate].to_i if params[:frame_rate]
-
-      # Format and codecs
-      self.video_codec = (params[:copy_video] ? 'copy' : params[:video_codec]) || self.class.video_codec
-      self.audio_codec = (params[:copy_audio] ? 'copy' : params[:audio_codec]) || self.class.audio_codec
+      self.keyframe_interval = params[:keyframe_interval] || self.class.keyframe_interval
+      self.frame_rate = params[:frame_rate]
 
       # Resolution
       self.size = params[:size]
@@ -72,25 +70,6 @@ module VideoConverter
 
       #Thumbnails
       self.thumbnails = params[:thumbnails]
-    end
-
-    def to_hash
-      keys = [:video_bitrate, :local_path, :segment_seconds, :chunks_dir, :audio_bitrate, :keyframe_interval, :frame_rate, :threads, :video_codec, :audio_codec, :size, :width, :height]
-      Hash[*keys.map{ |key| [key, self.send(key)] }.flatten]
-    end
-
-    def self.outputs output
-      (output.is_a?(Hash) ? [output] : output).map { |output| output.is_a?(self.class) ? output : new(output) }
-    end
-
-    def self.playlists output
-      outputs(output).select { |output| output.type == :playlist }
-    end
-
-    def qualities output
-      raise TypeError.new('Only for playlists') unless type == :playlist
-      stream_paths = streams.map { |stream| stream[:path] }
-      self.class.outputs(output).select { |output| stream_paths.include? output.filename }
     end
   end
 end

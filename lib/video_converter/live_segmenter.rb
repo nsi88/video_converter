@@ -3,70 +3,69 @@
 module VideoConverter
   class LiveSegmenter
     class << self
-      attr_accessor :bin, :ffprobe_bin, :chunks_command, :chunk_prefix, :encoding_profile, :log, :paral, :select_streams
+      attr_accessor :bin, :segment_seconds, :chunk_prefix, :encoding_profile, :select_streams, :command
     end
     
     self.bin = '/usr/local/bin/live_segmenter'
-    self.ffprobe_bin = '/usr/local/bin/ffprobe'
+    self.segment_seconds = 4
     self.chunk_prefix = 's'
     self.encoding_profile = 's'
-    self.log = '/dev/null'
-    self.paral = true
     self.select_streams = 'v'
 
-    self.chunks_command = '%{ffmpeg_bin} -f mp4 -i %{local_path} -vcodec copy -acodec copy -f mpegts -bsf h264_mp4toannexb pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
+    self.command = '%{ffmpeg_bin} -i %{ffmpeg_output} -vcodec copy -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
-    attr_accessor :paral, :chunk_prefix, :encoding_profile, :log, :output_array
+    attr_accessor :inputs, :outputs
 
-    def initialize params
-      self.output_array = params[:output_array] or raise ArgumentError.new("output_array is needed")
-      [:chunk_prefix, :encoding_profile, :log, :paral].each do |param|
-        self.send("#{param}=", params[param].nil? ? self.class.send(param) : params[param])
-      end
+    def initialize inputs, outputs
+      self.inputs = inputs
+      self.outputs = outputs
     end
 
     def run
-      res = true
+      success = true
       threads = []
       p = Proc.new do |output|
         make_chunks(output) && gen_quality_playlist(output)
       end
-      output_array.playlists.each do |playlist|
-        playlist.items.each do |item|
-          if paral
-            threads << Thread.new { res &&= p.call(item) }
-          else
-            res &&= p.call(item)
+      inputs.each do |input|
+        input.output_groups.each do |group|
+          group.select { |output| output.type != 'playlist' }.each do |output|
+            if VideoConverter.paral
+              threads << Thread.new { success &&= p.call(output) }
+            else
+              success &&= p.call(output)
+            end
           end
+          success &&= gen_group_playlist(group.detect { |output| output.type == 'playlist' })
         end
-        res &&= gen_group_playlist playlist
       end
-      threads.each { |t| t.join } if paral
-      res
+      threads.each { |t| t.join } if VideoConverter.paral
+      success
     end
 
     private
 
     def make_chunks output
-      Command.new(self.class.chunks_command, common_params.merge(output.to_hash)).execute
+      Command.new(self.class.command, prepare_params(output)).execute
     end
 
     def gen_quality_playlist output
       res = ''
       durations = []
       # order desc
-      chunks = Dir::glob(File.join(output.chunks_dir, "#{chunk_prefix}-*[0-9].ts")).sort do |c1, c2| 
+      chunks = Dir::glob(File.join(output.chunks_dir, "#{self.class.chunk_prefix}-*[0-9].ts")).sort do |c1, c2| 
         File.basename(c2).match(/\d+/).to_s.to_i <=> File.basename(c1).match(/\d+/).to_s.to_i
       end
       # chunk duration = (pts of first frame of the next chunk - pts of first frame of current chunk) / time_base
       # for the last chunks the last two pts are used
-      prl_pts, l_pts = `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunks.first} | tail -n2 2>&1`.split("\n").map { |l| l.split(',')[3].to_i }
+      prl_pts, l_pts = `#{Ffmpeg.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunks.first} | tail -n2 2>&1`.split("\n").map { |l| l.split(',')[3].to_i }
+      # NOTE for case when chunk has one frame
+      l_pts ||= prl_pts
       next_chunk_pts = 2 * l_pts - prl_pts
-      time_base = `#{self.class.ffprobe_bin} -show_streams -select_streams #{self.class.select_streams} -loglevel fatal #{chunks.first} 2>&1`.match(/\ntime_base=1\/(\d+)/)[1].to_f
+      time_base = `#{Ffmpeg.ffprobe_bin} -show_streams -select_streams #{self.class.select_streams} -loglevel fatal #{chunks.first} 2>&1`.match(/\ntime_base=1\/(\d+)/)[1].to_f
       chunks.each do |chunk|
-        pts = `#{self.class.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunk} | head -n1 2>&1`.split(',')[3].to_i
+        pts = `#{Ffmpeg.ffprobe_bin} -show_frames -select_streams #{self.class.select_streams} -print_format csv -loglevel fatal #{chunk} | head -n1 2>&1`.split(',')[3].to_i
         durations << (duration = (next_chunk_pts - pts) / time_base)
-        puts "chunk: #{chunk}, duration: #{duration}, next_chunk_pts: #{next_chunk_pts}, pts: #{pts}"
         next_chunk_pts = pts
         res = File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n" + res
         res = "#EXTINF:%0.2f,\n" % duration + res
@@ -86,8 +85,17 @@ module VideoConverter
       true
     end
 
-    def common_params
-      { :ffmpeg_bin => Ffmpeg.bin, :bin => self.class.bin, :log => log, :chunk_prefix => chunk_prefix, :encoding_profile => encoding_profile }
+    def prepare_params output
+      {
+        :ffmpeg_bin => Ffmpeg.bin,
+        :ffmpeg_output => output.ffmpeg_output,
+        :bin => self.class.bin,
+        :segment_seconds => self.class.segment_seconds,
+        :chunks_dir => output.chunks_dir,
+        :chunk_prefix => self.class.chunk_prefix,
+        :encoding_profile => self.class.encoding_profile,
+        :log => VideoConverter.log
+      }
     end
   end
 end
