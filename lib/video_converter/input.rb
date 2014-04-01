@@ -20,7 +20,7 @@ module VideoConverter
         paths = playlist.streams.map { |stream| stream[:path] }
         output_group = outputs.select { |output| paths.include?(output.filename) && (!output.path || output.path == input.to_s) }
         if output_group.any?
-          output_group.each { |output| output.passlogfile = File.join(output.work_dir, "group#{index}.log") }
+          output_group.each { |output| output.passlogfile = File.join(output.work_dir, "group#{index}.log") unless output.one_pass }
           self.output_groups << output_group.unshift(playlist) 
         end
       end

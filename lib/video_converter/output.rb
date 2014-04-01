@@ -12,7 +12,7 @@ module VideoConverter
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
 
-    attr_accessor :uid, :work_dir, :threads, :passlogfile
+    attr_accessor :uid, :work_dir, :log, :threads, :passlogfile
     attr_accessor :type, :filename
     attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format
     attr_accessor :one_pass, :video_bitrate, :audio_bitrate
@@ -27,7 +27,9 @@ module VideoConverter
       self.uid = params[:uid].to_s
       self.work_dir = File.join(self.class.work_dir, uid)
       FileUtils.mkdir_p(work_dir)
+      self.log = File.join(work_dir, 'converter.log')
       self.threads = params[:threads] || self.class.threads
+      # NOTE passlogile is defined in input
 
       # General output options
       self.type = params[:type]

@@ -2,7 +2,7 @@ require 'test_helper'
 
 class HlsTest < Test::Unit::TestCase
 	setup do
-		@concat = "/tmp/test_concat.mp4"
+		@concat = "tmp/test_concat.mp4"
 		VideoConverter::Hls.new({:input=>"test/fixtures/test_playlist.m3u8", :output=>@concat}).concat
 	end
 

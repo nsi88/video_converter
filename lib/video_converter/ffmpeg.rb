@@ -75,7 +75,7 @@ module VideoConverter
       {
         :bin => self.class.bin,
         :input => input.to_s,
-        :log => VideoConverter.log,
+        :log => output.log,
         :output => output.ffmpeg_output,
         :options => self.class.options.map do |output_option, ffmpeg_option|
           if output.send(output_option).present?

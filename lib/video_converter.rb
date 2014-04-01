@@ -19,7 +19,7 @@ module VideoConverter
     attr_accessor :log, :paral
   end
   # TODO log into tmp log file, merge to main log, delete tmp log
-  self.log = 'log/convertation.log'
+  self.log = 'log/converter.log'
   # TODO output option
   self.paral = true
 

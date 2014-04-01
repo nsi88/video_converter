@@ -13,7 +13,6 @@ module VideoConverter
         Input.new(input, outputs)
       end
       self.clear_tmp = params[:clear_tmp].nil? ? true : params[:clear_tmp]
-      FileUtils.mkdir_p(File.dirname(VideoConverter.log))
     end
 
     def run
@@ -39,7 +38,9 @@ module VideoConverter
     end
 
     def clear
-      # TODO delete logs and ts file for segmented type if clear_tmp is true
+      `cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}`
+      outputs.map { |output| output.passlogfile }.uniq.compact.each { |passlogfile| `rm #{passlogfile}*` }
+      outputs.select { |output| output.type == 'segmented' }.each { |output| `rm #{output.ffmpeg_output}` }
     end
   end
 end

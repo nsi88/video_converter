@@ -94,7 +94,7 @@ module VideoConverter
         :chunks_dir => output.chunks_dir,
         :chunk_prefix => self.class.chunk_prefix,
         :encoding_profile => self.class.encoding_profile,
-        :log => VideoConverter.log
+        :log => output.log
       }
     end
   end

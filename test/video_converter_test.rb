@@ -1,10 +1,6 @@
 require 'test_helper'
 
 class VideoConverterTest < Test::Unit::TestCase
-  setup do
-    VideoConverter::Command.verbose = true
-  end
-
   context 'segmentation' do
     context 'with transcoding' do
       setup do
