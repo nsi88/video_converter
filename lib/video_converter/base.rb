@@ -16,8 +16,10 @@ module VideoConverter
     end
 
     def run
-      success = true
-      [:convert, :segment, :screenshot].each { |action| success &&= send(action) }
+      success = convert
+      success &&= segment if outputs.index { |output| output.type == 'segmented' }
+      # TODO screenshots generation
+      #success &&= screenshot
       clear if clear_tmp && success
       success
     end

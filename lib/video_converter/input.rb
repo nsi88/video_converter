@@ -15,15 +15,20 @@ module VideoConverter
       self.input = input
       raise ArgumentError.new("#{input} does not exist") unless exists?
 
+      # for many inputs case take outputs for this input
+      outputs = outputs.select { |output| !output.path || output.path == input.to_s }
       self.output_groups = []
+      # qualities with the same playlist is a one group
       outputs.select { |output| output.type == 'playlist' }.each_with_index do |playlist, index|
         paths = playlist.streams.map { |stream| stream[:path] }
-        output_group = outputs.select { |output| paths.include?(output.filename) && (!output.path || output.path == input.to_s) }
+        output_group = outputs.select { |output| paths.include?(output.filename) }
         if output_group.any?
           output_group.each { |output| output.passlogfile = File.join(output.work_dir, "group#{index}.log") unless output.one_pass }
           self.output_groups << output_group.unshift(playlist) 
         end
       end
+      # qualities without playlist are separate groups
+      (outputs - output_groups.flatten).each { |output| self.output_groups << [output] }
     end
 
     def to_s
