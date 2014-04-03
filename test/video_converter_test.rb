@@ -1,6 +1,32 @@
 require 'test_helper'
 
 class VideoConverterTest < Test::Unit::TestCase
+  context 'convertation' do
+    context 'with thumbnails' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test (1).mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'q1.mp4' }, 
+            { :video_bitrate => 400, :filename => 'q2.mp4', :thumbnails => { 
+              :number => 2, :offset_start => '5%', :offset_end => '5%', :presets => { :norm => '-normalize' }
+            } },
+            { :video_bitrate => 500, :filename => 'q3.mp4' }
+          ]
+        )).run
+      end
+
+      should 'create qualities and thumbnails' do
+        3.times.each do |n|
+          q = File.join(VideoConverter::Output.work_dir, @c.uid, "q#{n + 1}.mp4")
+          assert File.exists?(q)
+          assert File.size(q) > 0
+        end
+        assert_equal %w(. .. scr004.jpg scr004_norm.jpg scr005.jpg scr005_norm.jpg).sort, Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, 'thumbnails')).sort
+      end
+    end
+  end
+
   context 'segmentation' do
     context 'with transcoding' do
       setup do

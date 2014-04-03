@@ -16,10 +16,8 @@ module VideoConverter
     end
 
     def run
-      success = convert
+      success = convert && make_thumbnails
       success &&= segment if outputs.index { |output| output.type == 'segmented' }
-      # TODO screenshots generation
-      #success &&= screenshot
       clear if clear_tmp && success
       success
     end
@@ -30,13 +28,16 @@ module VideoConverter
       Ffmpeg.new(inputs, outputs).run
     end
 
-    def segment
-      LiveSegmenter.new(inputs, outputs).run
+    def make_thumbnails
+      if output = outputs.detect { |output| output.thumbnails }
+        VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run
+      else
+        true
+      end
     end
 
-    def screenshot
-      # TODO use VideoScreenshoter
-      true
+    def segment
+      LiveSegmenter.new(inputs, outputs).run
     end
 
     def clear
