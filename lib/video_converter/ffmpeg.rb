@@ -62,15 +62,18 @@ module VideoConverter
     private 
 
     def prepare_params input, output
+      output.video_filter = []
       if output.size
-        output.video_filter = "scale=#{output.size.sub('x', ':')}"
+        output.video_filter << "scale=#{output.size.sub('x', ':')}"
       elsif output.width && output.size
-        output.video_filter = "scale=#{output.width}:#{output.height}"
+        output.video_filter << "scale=#{output.width}:#{output.height}"
       elsif output.width
-        output.video_filter = "scale=#{output.width}:trunc\\(ow/a/2\\)*2"
+        output.video_filter << "scale=#{output.width}:trunc\\(ow/a/2\\)*2"
       elsif output.height
-        output.video_filter = "scale=trunc\\(oh*a/2\\)*2:#{output.height}"
+        output.video_filter << "scale=trunc\\(oh*a/2\\)*2:#{output.height}"
       end
+      output.video_filter << { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[output.rotate] if output.rotate
+      output.video_filter = output.video_filter.join(',')
 
       {
         :bin => self.class.bin,

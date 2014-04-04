@@ -18,8 +18,8 @@ class Hash
         value = value.map { |v| v.is_a?(Hash) ? v.deep_shellescape_values : v.shellescape }
       elsif value.is_a? Hash
         value = value.deep_shellescape_values 
-      else
-        value = value.to_s.shellescape
+      elsif value.is_a? String
+        value = value.shellescape
       end
       options[key] = value
       options

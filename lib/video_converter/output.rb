@@ -20,7 +20,7 @@ module VideoConverter
     attr_accessor :keyframe_interval, :frame_rate
     attr_accessor :size, :width, :height, :video_filter
     attr_accessor :thumbnails
-                  
+    attr_accessor :rotate
 
     def initialize params = {}
       # Inner
@@ -72,6 +72,13 @@ module VideoConverter
 
       #Thumbnails
       self.thumbnails = params[:thumbnails]
+
+      # Video processing
+      self.rotate = params[:rotate]
+      unless [nil, true, false].include? rotate
+        self.rotate = rotate.to_i
+        raise ArgumentError.new('Invalid rotate') unless [0, 90, 180, 270].include? rotate
+      end
     end
   end
 end
