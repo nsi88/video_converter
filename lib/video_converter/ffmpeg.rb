@@ -19,7 +19,8 @@ module VideoConverter
       :frame_rate => '-r',
       :threads => '-threads',
       :format => '-f',
-      :bitstream_format => '-bsf'
+      :bitstream_format => '-bsf',
+      :deinterlace => '-deinterlace'
     }
     self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -keyint_min 25 -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
@@ -78,7 +79,11 @@ module VideoConverter
         :output => output.ffmpeg_output,
         :options => self.class.options.map do |output_option, ffmpeg_option|
           if output.send(output_option).present?
-            ffmpeg_option += ' ' + output.send(output_option).to_s
+            if output.send(output_option) == true
+              ffmpeg_option
+            else
+              ffmpeg_option + ' ' + output.send(output_option).to_s
+            end
           end
         end.join(' ')
       }

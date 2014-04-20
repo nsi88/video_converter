@@ -3,10 +3,11 @@
 module VideoConverter
   class Input
     class << self
-      attr_accessor :metadata_command
+      attr_accessor :metadata_command, :show_frame_command
     end
 
     self.metadata_command = "%{ffprobe_bin} %{input} 2>&1"
+    self.show_frame_command = "%{ffprobe_bin} -show_frames -select_streams v %{input} 2>/dev/null | head -n 24"
 
     attr_accessor :input, :output_groups, :metadata
 
@@ -32,11 +33,14 @@ module VideoConverter
       (outputs - output_groups.flatten).each { |output| self.output_groups << [output] }
       self.metadata = get_metadata
       
-      # autorotate
+      # set output parameters depending of input
       outputs.each do |output|
+        # autorotate
         if output.type != 'playlist' && [nil, true].include?(output.rotate) && metadata[:rotate]
           output.rotate = 360 - metadata[:rotate]
         end
+        # autodeinterlace
+        output.deinterlace = metadata[:interlaced] if output.deinterlace.nil?
       end
     end
 
@@ -69,7 +73,8 @@ module VideoConverter
 
     def get_metadata
       metadata = {}
-      s = `#{Command.new self.class.metadata_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input}`.encode!('UTF-8', 'UTF-8', :invalid => :replace)
+      # common metadata
+      s = Command.new(self.class.metadata_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input).capture
       if m = s.match(/Stream.*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/)
         metadata[:audio_codec] = m[1]
         metadata[:audio_sample_rate] = m[2].to_i
@@ -100,6 +105,11 @@ module VideoConverter
         metadata[:file_size_in_bytes] = File.size(input.gsub('\\', ''))
       end
       metadata[:format] = File.extname(input).delete('.')
+
+      # frame metadata
+      s = Command.new(self.class.show_frame_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input).capture
+      metadata[:interlaced] = true if s.include?('interlaced_frame=1')
+
       metadata
     end
   end
