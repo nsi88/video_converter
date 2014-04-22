@@ -18,6 +18,7 @@ module VideoConverter
     def run
       success = convert && make_thumbnails
       success &&= segment if outputs.index { |output| output.type == 'segmented' }
+      outputs.each { |output| success &&= faststart(output) if output.faststart }
       clear if clear_tmp && success
       success
     end
@@ -38,6 +39,10 @@ module VideoConverter
 
     def segment
       LiveSegmenter.new(inputs, outputs).run
+    end
+
+    def faststart(output)
+      Faststart.new(output).run
     end
 
     def clear

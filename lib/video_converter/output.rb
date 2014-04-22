@@ -21,7 +21,8 @@ module VideoConverter
     attr_accessor :size, :width, :height, :video_filter
     attr_accessor :thumbnails
     attr_accessor :rotate
-
+    attr_accessor :faststart
+                  
     def initialize params = {}
       # Inner
       self.uid = params[:uid].to_s
@@ -79,6 +80,9 @@ module VideoConverter
         self.rotate = rotate.to_i
         raise ArgumentError.new('Invalid rotate') unless [0, 90, 180, 270].include? rotate
       end
+
+      #Faststart
+      self.faststart = params.has_key?(:faststart) ? params[:faststart] : self.format == 'mp4'
     end
   end
 end
