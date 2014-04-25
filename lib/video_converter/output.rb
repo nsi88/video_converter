@@ -44,6 +44,7 @@ module VideoConverter
       else
         self.format = File.extname(filename).sub('.', '')
         self.ffmpeg_output = File.join(work_dir, filename)
+        raise ArgumentError.new('Invalid playlist extension') if type == 'playlist' && !['f4m', 'm3u8'].include?(format)
       end
       self.video_codec = params[:video_codec] || self.class.video_codec
       self.audio_codec = params[:audio_codec] || self.class.audio_codec

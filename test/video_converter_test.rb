@@ -29,33 +29,62 @@ class VideoConverterTest < Test::Unit::TestCase
 
   context 'segmentation' do
     context 'with transcoding' do
-      setup do
-        VideoConverter.paral = true
-        (@c = VideoConverter.new(
-          "input"=>["test/fixtures/test (1).mp4"], 
-          "output"=>[
-            {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
-            {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
-            {"filename"=>"playlist.m3u8", "type"=>"playlist", "streams"=>[
-              {"path"=>"sd1.m3u8", "bandwidth"=>804}, {"path"=>"sd2.m3u8", "bandwidth"=>1300}
-            ]}, 
-            {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720}, 
-            {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720}, 
-            {"filename"=>"hd_playlist.m3u8", "type"=>"playlist", "streams"=>[
-              {"path"=>"hd1.m3u8", "bandwidth"=>1598}, {"path"=>"hd2.m3u8", "bandwidth"=>3328}
-            ]}
-          ]
-        )).run
+      context 'to HLS' do
+        setup do
+          VideoConverter.paral = true
+          (@c = VideoConverter.new(
+            "input"=>["test/fixtures/test (1).mp4"], 
+            "output"=>[
+              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
+              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
+              {"filename"=>"playlist.m3u8", "type"=>"playlist", "streams"=>[
+                {"path"=>"sd1.m3u8", "bandwidth"=>804}, {"path"=>"sd2.m3u8", "bandwidth"=>1300}
+              ]}, 
+              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720}, 
+              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720}, 
+              {"filename"=>"hd_playlist.m3u8", "type"=>"playlist", "streams"=>[
+                {"path"=>"hd1.m3u8", "bandwidth"=>1598}, {"path"=>"hd2.m3u8", "bandwidth"=>3328}
+              ]}
+            ]
+          )).run
+        end
+
+        should 'generate hls' do
+          %w(sd1 sd2 hd1 hd2).each do |quality|
+            # should create chunks
+            assert_equal ['s-00001.ts', 's-00002.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            # TODO verify that chunks have different quality (weight)
+            # should create playlists
+            assert File.exists?(playlist = File.join(VideoConverter::Output.work_dir, @c.uid, "#{quality}.m3u8"))
+            # TODO verify that playlist is valid (contain all chunks and modifiers)
+          end
+        end
       end
 
-      should 'generate hls' do
-        %w(sd1 sd2 hd1 hd2).each do |quality|
-          # should create chunks
-          assert_equal ['s-00001.ts', 's-00002.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
-          # TODO verify that chunks have different quality (weight)
-          # should create playlists
-          assert File.exists?(playlist = File.join(VideoConverter::Output.work_dir, @c.uid, "#{quality}.m3u8"))
-          # TODO verify that playlist is valid (contain all chunks and modifiers)
+      context 'to HDS' do
+        setup do
+          VideoConverter.paral = true
+          (@c = VideoConverter.new(
+            "input"=>["test/fixtures/test (1).mp4"], 
+            "output"=>[
+              {"video_bitrate"=>676, "filename"=>"sd1.mp4", "audio_bitrate"=>128, "height"=>528}, 
+              {"video_bitrate"=>1172, "filename"=>"sd2.mp4", "audio_bitrate"=>128, "height"=>528}, 
+              {"filename"=>"playlist.f4m", "type"=>"playlist", "streams"=>[
+                {"path"=>"sd1.mp4", "bandwidth"=>804}, {"path"=>"sd2.mp4", "bandwidth"=>1300}
+              ]}, 
+              {"video_bitrate"=>1550, "filename"=>"hd1.mp4", "audio_bitrate"=>48, "height"=>720}, 
+              {"video_bitrate"=>3200, "filename"=>"hd2.mp4", "audio_bitrate"=>128, "height"=>720}, 
+              {"filename"=>"hd_playlist.f4m", "type"=>"playlist", "streams"=>[
+                {"path"=>"hd1.mp4", "bandwidth"=>1598}, {"path"=>"hd2.mp4", "bandwidth"=>3328}
+              ]}
+            ]
+          )).run
+        end
+
+        should 'generate hds' do
+          %w(sd1.mp4 sd2.mp4 playlist.f4m hd1.mp4 hd2.mp4 hd_playlist.f4m).each do |filename|
+            assert File.exists?(File.join(VideoConverter::Output.work_dir, @c.uid, "#{filename}"))
+          end
         end
       end
     end

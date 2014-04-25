@@ -25,34 +25,30 @@ module VideoConverter
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -keyint_min 25 -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} -i %{input} -y -pass 2 -keyint_min 25 -pix_fmt yuv420p %{options} %{output} 1>>%{log} 2>&1 || exit 1'
 
-    attr_accessor :inputs, :outputs
+    attr_accessor :input, :group
 
-    def initialize inputs, outputs
-      self.inputs = inputs
-      self.outputs = outputs
+    def initialize input, group
+      self.input = input
+      self.group = group
     end
 
-    # NOTE outputs of one group must have common first pass
+    # NOTE one group must have common first pass
     def run
       success = true
       threads = []
-      inputs.each do |input|
-        input.output_groups.each do |group|
-          qualities = group.select { |output| output.type != 'playlist' }
-          # NOTE if all qualities in group contain one_pass, use one_pass_command for ffmpeg
-          unless one_pass = qualities.inject { |r, q| r && q.one_pass }
-            # NOTE first pass is executed with maximal group's video bitrate
-            best_quality = qualities.sort { |q1, q2| q1.video_bitrate.to_i <=> q2.video_bitrate.to_i }.last
-            success &&= Command.new(self.class.first_pass_command, prepare_params(input, best_quality)).execute
-          end
-          qualities.each do |output|
-            command = Command.new(one_pass ? self.class.one_pass_command : self.class.second_pass_command, prepare_params(input, output))
-            if VideoConverter.paral
-              threads << Thread.new { success &&= command.execute }
-            else
-              success &&= command.execute
-            end
-          end
+      qualities = group.select { |output| output.type != 'playlist' }
+      # NOTE if all qualities in group contain one_pass, use one_pass_command for ffmpeg
+      unless one_pass = qualities.inject { |r, q| r && q.one_pass }
+        # NOTE first pass is executed with maximal group's video bitrate
+        best_quality = qualities.sort { |q1, q2| q1.video_bitrate.to_i <=> q2.video_bitrate.to_i }.last
+        success &&= Command.new(self.class.first_pass_command, prepare_params(input, best_quality)).execute
+      end
+      qualities.each do |output|
+        command = Command.new(one_pass ? self.class.one_pass_command : self.class.second_pass_command, prepare_params(input, output))
+        if VideoConverter.paral
+          threads << Thread.new { success &&= command.execute }
+        else
+          success &&= command.execute
         end
       end
       threads.each { |t| t.join } if VideoConverter.paral

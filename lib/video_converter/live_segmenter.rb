@@ -14,11 +14,11 @@ module VideoConverter
 
     self.command = '%{ffmpeg_bin} -i %{ffmpeg_output} -vcodec copy -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
-    attr_accessor :inputs, :outputs
+    attr_accessor :input, :group
 
-    def initialize inputs, outputs
-      self.inputs = inputs
-      self.outputs = outputs
+    def initialize input, group
+      self.input = input
+      self.group = group
     end
 
     def run
@@ -27,18 +27,14 @@ module VideoConverter
       p = Proc.new do |output|
         make_chunks(output) && gen_quality_playlist(output)
       end
-      inputs.each do |input|
-        input.output_groups.each do |group|
-          group.select { |output| output.type != 'playlist' }.each do |output|
-            if VideoConverter.paral
-              threads << Thread.new { success &&= p.call(output) }
-            else
-              success &&= p.call(output)
-            end
-          end
-          success &&= gen_group_playlist(group.detect { |output| output.type == 'playlist' })
+      group.select { |output| output.type != 'playlist' }.each do |output|
+        if VideoConverter.paral
+          threads << Thread.new { success &&= p.call(output) }
+        else
+          success &&= p.call(output)
         end
       end
+      success &&= gen_group_playlist(group.detect { |output| output.type == 'playlist' })
       threads.each { |t| t.join } if VideoConverter.paral
       success
     end

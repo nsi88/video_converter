@@ -16,34 +16,28 @@ module VideoConverter
     end
 
     def run
-      success = convert && make_thumbnails
-      success &&= segment if outputs.index { |output| output.type == 'segmented' }
-      outputs.each { |output| success &&= faststart(output) if output.faststart }
+      success = true
+      inputs.each do |input|
+        input.output_groups.each do |group|
+          success &&= Ffmpeg.new(input, group).run
+          group.each do |output|
+            success &&= Faststart.new(output).run if output.faststart
+            success &&= VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run if output.thumbnails
+          end
+          if playlist = group.detect { |output| output.type == 'playlist' }
+            success &&= if playlist.format == 'm3u8'
+              LiveSegmenter.new(input, group).run
+            else
+              Hds.new(input, group).run
+            end
+          end
+        end
+      end
       clear if clear_tmp && success
       success
     end
 
     private
-
-    def convert
-      Ffmpeg.new(inputs, outputs).run
-    end
-
-    def make_thumbnails
-      if output = outputs.detect { |output| output.thumbnails }
-        VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run
-      else
-        true
-      end
-    end
-
-    def segment
-      LiveSegmenter.new(inputs, outputs).run
-    end
-
-    def faststart(output)
-      Faststart.new(output).run
-    end
 
     def clear
       `cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}`

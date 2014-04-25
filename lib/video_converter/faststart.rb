@@ -3,10 +3,10 @@
 module VideoConverter
   class Faststart
     class << self
-      attr_accessor :bin, :moov_atom_command
+      attr_accessor :bin, :command
     end
     self.bin = '/usr/local/bin/qt-faststart'
-    self.moov_atom_command = '%{bin} %{input} %{moov_atom} && mv %{moov_atom} %{input} 1>>%{log} 2>&1 || exit 1'
+    self.command = '%{bin} %{input} %{moov_atom} && mv %{moov_atom} %{input} 1>>%{log} 2>&1 || exit 1'
 
     attr_accessor :output
 
@@ -16,7 +16,7 @@ module VideoConverter
 
     def run
       success = true
-      success &&= Command.new(self.class.moov_atom_command, prepare_params(output)).execute
+      success &&= Command.new(self.class.command, prepare_params(output)).execute
       success
     end
 
