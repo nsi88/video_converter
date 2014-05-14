@@ -8,6 +8,10 @@ module VideoConverter
     self.dry_run = false
     self.verbose = false
 
+    def self.chain(*commands)
+      commands.map { |c| "(#{c})" }.join(' && ')
+    end
+
     attr_accessor :command
 
     def initialize command, params = {}

@@ -3,7 +3,7 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command
+      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command
     end
 
     self.bin = '/usr/local/bin/ffmpeg'
@@ -11,20 +11,24 @@ module VideoConverter
     self.options = {
       :video_codec => '-c:v',
       :audio_codec => '-c:a',
+      :frame_rate => '-r',
+      :keyint_min => '-keyint_min',
       :keyframe_interval => '-g',
+      :force_keyframes => '-force_key_frames',
       :passlogfile => '-passlogfile',
       :video_bitrate => '-b:v',
       :audio_bitrate => '-b:a',
+      :size => '-s',
       :video_filter => '-vf',
-      :frame_rate => '-r',
       :threads => '-threads',
       :format => '-f',
       :bitstream_format => '-bsf',
       :deinterlace => '-deinterlace'
     }
     self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -keyint_min 25 -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
-    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 -keyint_min 25 -pix_fmt yuv420p %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
+    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 -pix_fmt yuv420p %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
 
     attr_accessor :input, :group
 
@@ -33,19 +37,35 @@ module VideoConverter
       self.group = group
     end
 
-    # NOTE one group must have common first pass
     def run
       success = true
       threads = []
+      common_first_pass = false
+      
       qualities = group.select { |output| output.type != 'playlist' }
-      # NOTE if all qualities in group contain one_pass, use one_pass_command for ffmpeg
+      # if all qualities in group contain one_pass, use one_pass_command for ffmpeg
       unless one_pass = qualities.inject { |r, q| r && q.one_pass }
-        # NOTE first pass is executed with maximal group's video bitrate
-        best_quality = qualities.sort { |q1, q2| q1.video_bitrate.to_i <=> q2.video_bitrate.to_i }.last
-        success &&= Command.new(self.class.first_pass_command, prepare_params(input, best_quality)).execute
+        # if group qualities have different sizes use force_keyframes and separate first passes
+        if common_first_pass = qualities.map { |quality| quality.height }.uniq.count == 1
+          # first pass is executed with the best group quality, defined by bitrate or size
+          best_quality = qualities.sort do |q1, q2| 
+            res = q1.video_bitrate.to_i <=> q2.video_bitrate.to_i
+            res = q1.height.to_i <=> q2.height.to_i if res == 0
+            res = q1.width.to_i <=> q2.width.to_i if res == 0
+            res
+          end.last
+          success &&= Command.new(self.class.first_pass_command, prepare_params(input, best_quality)).execute
+        end
       end
       qualities.each do |output|
-        command = Command.new(one_pass ? self.class.one_pass_command : self.class.second_pass_command, prepare_params(input, output))
+        command = if one_pass
+          self.class.one_pass_command
+        elsif !common_first_pass
+          Command.chain(self.class.first_pass_command, self.class.second_pass_command)
+        else
+          self.class.second_pass_command
+        end
+        command = Command.new(command, prepare_params(input, output))
         if VideoConverter.paral
           threads << Thread.new { success &&= command.execute }
         else
@@ -60,15 +80,8 @@ module VideoConverter
 
     def prepare_params input, output
       output.video_filter = []
-      if output.size
-        output.video_filter << "scale=#{output.size.sub('x', ':')}"
-      elsif output.width && output.size
-        output.video_filter << "scale=#{output.width}:#{output.height}"
-      elsif output.width
-        output.video_filter << "scale=#{output.width}:trunc\\(ow/a/2\\)*2"
-      elsif output.height
-        output.video_filter << "scale=trunc\\(oh*a/2\\)*2:#{output.height}"
-      end
+      output.video_filter << "scale=#{output.width}:trunc\\(ow/a/2\\)*2" if output.width && !output.height
+      output.video_filter << "scale=trunc\\(oh*a/2\\)*2:#{output.height}" if output.height && !output.width
       output.video_filter << { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[output.rotate] if output.rotate
       output.video_filter = output.video_filter.join(',')
 

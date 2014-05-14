@@ -3,11 +3,13 @@
 module VideoConverter
   class Output
     class << self
-      attr_accessor :work_dir, :keyframe_interval, :threads, :video_codec, :audio_codec
+      attr_accessor :work_dir, :keyint_min, :keyframe_interval, :keyframe_interval_in_seconds, :threads, :video_codec, :audio_codec
     end
 
     self.work_dir = '/tmp'
-    self.keyframe_interval = 250
+    self.keyint_min = 25
+    self.keyframe_interval = 100
+    self.keyframe_interval_in_seconds = 4
     self.threads = 1
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
@@ -17,7 +19,7 @@ module VideoConverter
     attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format
     attr_accessor :one_pass, :video_bitrate, :audio_bitrate
     attr_accessor :streams, :path, :chunks_dir
-    attr_accessor :keyframe_interval, :frame_rate
+    attr_accessor :frame_rate, :keyint_min, :keyframe_interval, :force_keyframes
     attr_accessor :size, :width, :height, :video_filter
     attr_accessor :thumbnails
     attr_accessor :rotate, :deinterlace
@@ -64,13 +66,15 @@ module VideoConverter
       end
 
       # Frame rate
-      self.keyframe_interval = params[:keyframe_interval] || self.class.keyframe_interval
       self.frame_rate = params[:frame_rate]
+      self.keyint_min = params[:keyint_min] || self.class.keyint_min
+      self.keyframe_interval = params[:keyframe_interval] || self.class.keyframe_interval
 
       # Resolution
       self.size = params[:size]
-      self.width = params[:width]
-      self.height = params[:height]
+      self.width = params[:size] ? params[:size].split('x').first : params[:width]
+      self.height = params[:size] ? params[:size].split('x').last : params[:height]
+      self.size = "#{width}x#{height}" if !size && width && height
 
       #Thumbnails
       self.thumbnails = params[:thumbnails]

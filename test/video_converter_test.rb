@@ -52,7 +52,7 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00001.ts', 's-00002.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # TODO verify that chunks have different quality (weight)
             # should create playlists
             assert File.exists?(playlist = File.join(VideoConverter::Output.work_dir, @c.uid, "#{quality}.m3u8"))
@@ -67,7 +67,7 @@ class VideoConverterTest < Test::Unit::TestCase
           (@c = VideoConverter.new(
             "input"=>["test/fixtures/test (1).mp4"], 
             "output"=>[
-              {"video_bitrate"=>676, "filename"=>"sd1.mp4", "audio_bitrate"=>128, "height"=>528}, 
+              {"video_bitrate"=>676, "filename"=>"sd1.mp4", "audio_bitrate"=>128, "height"=>360}, 
               {"video_bitrate"=>1172, "filename"=>"sd2.mp4", "audio_bitrate"=>128, "height"=>528}, 
               {"filename"=>"playlist.f4m", "type"=>"playlist", "streams"=>[
                 {"path"=>"sd1.mp4", "bandwidth"=>804}, {"path"=>"sd2.mp4", "bandwidth"=>1300}
@@ -81,10 +81,15 @@ class VideoConverterTest < Test::Unit::TestCase
           )).run
         end
 
-        should 'generate hds' do
+        should 'generate hds with sync keyframes' do
           %w(sd1.mp4 sd2.mp4 playlist.f4m hd1.mp4 hd2.mp4 hd_playlist.f4m).each do |filename|
             assert File.exists?(File.join(VideoConverter::Output.work_dir, @c.uid, "#{filename}"))
           end
+
+          assert_equal(
+            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(VideoConverter::Output.work_dir, @c.uid, 'sd1.mp4')).capture),
+            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(VideoConverter::Output.work_dir, @c.uid, 'sd2.mp4')).capture)
+          )
         end
       end
     end

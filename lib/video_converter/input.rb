@@ -15,23 +15,35 @@ module VideoConverter
       raise ArgumentError.new('input is needed') if input.blank?
       self.input = input
       raise ArgumentError.new("#{input} does not exist") unless exists?
+      self.metadata = get_metadata
 
       # for many inputs case take outputs for this input
       outputs = outputs.select { |output| !output.path || output.path == input.to_s }
       self.output_groups = []
       
       # qualities with the same playlist is a one group
-      outputs.select { |output| output.type == 'playlist' }.each_with_index do |playlist, index|
+      outputs.select { |output| output.type == 'playlist' }.each_with_index do |playlist, group_index|
         paths = playlist.streams.map { |stream| stream[:path] }
         output_group = outputs.select { |output| paths.include?(output.filename) }
         if output_group.any?
-          output_group.each { |output| output.passlogfile = File.join(output.work_dir, "group#{index}.log") unless output.one_pass }
+          # if group qualities have different sizes use force_keyframes and separate first passes
+          common_first_pass = output_group.map { |output| output.height }.uniq.count == 1
+          output_group.each_with_index do |output, output_index| 
+            unless output.one_pass
+              if common_first_pass
+                output.passlogfile = File.join(output.work_dir, "group#{group_index}.log")
+              else
+                output.passlogfile = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
+                output.force_keyframes = (metadata[:duration_in_ms] / 1000 / Output.keyframe_interval_in_seconds).times.to_a.map { |t| t * Output.keyframe_interval_in_seconds }.join(',')
+                output.frame_rate = output.keyint_min = output.keyframe_interval = nil
+              end
+            end
+          end
           self.output_groups << output_group.unshift(playlist) 
         end
       end
       # qualities without playlist are separate groups
       (outputs - output_groups.flatten).each { |output| self.output_groups << [output] }
-      self.metadata = get_metadata
       
       # set output parameters depending of input
       outputs.each do |output|
