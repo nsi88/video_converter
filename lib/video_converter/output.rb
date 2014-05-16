@@ -3,7 +3,7 @@
 module VideoConverter
   class Output
     class << self
-      attr_accessor :work_dir, :keyint_min, :keyframe_interval, :keyframe_interval_in_seconds, :threads, :video_codec, :audio_codec
+      attr_accessor :work_dir, :keyint_min, :keyframe_interval, :keyframe_interval_in_seconds, :threads, :video_codec, :audio_codec, :pixel_format
     end
 
     self.work_dir = '/tmp'
@@ -13,10 +13,11 @@ module VideoConverter
     self.threads = 1
     self.video_codec = 'libx264'
     self.audio_codec = 'libfaac'
+    self.pixel_format = 'yuv420p'
 
     attr_accessor :uid, :work_dir, :log, :threads, :passlogfile
     attr_accessor :type, :filename
-    attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format
+    attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format, :pixel_format
     attr_accessor :one_pass, :video_bitrate, :audio_bitrate
     attr_accessor :streams, :path, :chunks_dir
     attr_accessor :frame_rate, :keyint_min, :keyframe_interval, :force_keyframes
@@ -51,6 +52,7 @@ module VideoConverter
       self.video_codec = params[:video_codec] || self.class.video_codec
       self.audio_codec = params[:audio_codec] || self.class.audio_codec
       self.bitstream_format = params[:bitstream_format]
+      self.pixel_format = params[:pixel_format] || self.class.pixel_format
 
       # Rate controle
       self.one_pass = !!params[:one_pass]

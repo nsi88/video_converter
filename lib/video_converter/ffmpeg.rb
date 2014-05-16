@@ -23,11 +23,12 @@ module VideoConverter
       :threads => '-threads',
       :format => '-f',
       :bitstream_format => '-bsf',
+      :pixel_format => '-pix_fmt',
       :deinterlace => '-deinterlace'
     }
     self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an -pix_fmt yuv420p %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
-    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 -pix_fmt yuv420p %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
+    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
 
     attr_accessor :input, :group

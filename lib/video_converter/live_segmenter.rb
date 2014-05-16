@@ -3,16 +3,15 @@
 module VideoConverter
   class LiveSegmenter
     class << self
-      attr_accessor :bin, :segment_seconds, :chunk_prefix, :encoding_profile, :select_streams, :command
+      attr_accessor :bin, :chunk_prefix, :encoding_profile, :select_streams, :command
     end
     
     self.bin = '/usr/local/bin/live_segmenter'
-    self.segment_seconds = 4
     self.chunk_prefix = 's'
     self.encoding_profile = 's'
     self.select_streams = 'v'
 
-    self.command = '%{ffmpeg_bin} -i %{ffmpeg_output} -vcodec copy -acodec copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{segment_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
+    self.command = '%{ffmpeg_bin} -i %{ffmpeg_output} -c:v copy -c:a copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{keyframe_interval_in_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
     attr_accessor :input, :group
 
@@ -86,7 +85,7 @@ module VideoConverter
         :ffmpeg_bin => Ffmpeg.bin,
         :ffmpeg_output => output.ffmpeg_output,
         :bin => self.class.bin,
-        :segment_seconds => self.class.segment_seconds,
+        :keyframe_interval_in_seconds => Output.keyframe_interval_in_seconds,
         :chunks_dir => output.chunks_dir,
         :chunk_prefix => self.class.chunk_prefix,
         :encoding_profile => self.class.encoding_profile,
