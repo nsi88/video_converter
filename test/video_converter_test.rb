@@ -123,4 +123,34 @@ class VideoConverterTest < Test::Unit::TestCase
       end
     end
   end
+
+  context 'split' do
+    setup do
+      (@c = VideoConverter.new(
+        :input => "test/fixtures/test (1).mp4",
+        :output => { :segment_time => 2, :filename => '%01d.nut' }
+      )).split
+    end
+    should 'segment file' do
+      assert_equal %w(0.nut 1.nut 2.nut 3.nut converter.log), Dir.entries(@c.outputs.first.work_dir).delete_if { |e| %w(. ..).include?(e) }.sort
+    end
+  end
+
+  context 'concat' do
+    setup do
+      FileUtils.cp("test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4")
+      (@c = VideoConverter.new(
+        :input => ["test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4"],
+        :output => { :filename => 'concat.mp4' }
+      )).concat
+      FileUtils.rm("test/fixtures/test (2).mp4")
+    end
+    should 'concat inputs' do
+      assert File.exists?(@c.outputs.first.ffmpeg_output)
+      assert_equal(
+        VideoConverter.new(:input => "test/fixtures/test (1).mp4").inputs.first.metadata[:duration_in_ms]/1000*2,
+        VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.metadata[:duration_in_ms]/1000
+      )
+    end
+  end
 end

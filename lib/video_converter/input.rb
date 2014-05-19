@@ -60,6 +60,10 @@ module VideoConverter
       input
     end
 
+    def unescape
+      input.gsub(/\\+([^n])/, '\1')
+    end
+
     private
 
     def exists?

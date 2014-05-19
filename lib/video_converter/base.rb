@@ -16,14 +16,41 @@ module VideoConverter
     end
 
     def run
+      success = convert && faststart && make_screenshots && segment
+      clear if clear_tmp && success
+      success
+    end
+
+    def convert
       success = true
       inputs.each do |input|
         input.output_groups.each do |group|
           success &&= Ffmpeg.new(input, group).run
-          group.each do |output|
-            success &&= Faststart.new(output).run if output.faststart
-            success &&= VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run if output.thumbnails
-          end
+        end
+      end
+      success
+    end
+
+    def faststart
+      success = true
+      outputs.each do |output|
+        success &&= Faststart.new(output).run if output.faststart
+      end
+      success
+    end
+
+    def make_screenshots
+      success = true
+      outputs.each do |output|
+        success &&= VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run if output.thumbnails
+      end
+      success
+    end
+
+    def segment
+      success = true
+      inputs.each do |input|
+        input.output_groups.each do |group|
           if playlist = group.detect { |output| output.type == 'playlist' }
             success &&= if playlist.format == 'm3u8'
               LiveSegmenter.new(input, group).run
@@ -33,11 +60,20 @@ module VideoConverter
           end
         end
       end
-      clear if clear_tmp && success
-      success
     end
 
-    private
+    def split
+      Ffmpeg.new(inputs.first, outputs).split
+    end
+
+    def concat
+      list = File.join(outputs.first.work_dir, 'list.txt')
+      # NOTE ffmpeg concat list requires unescaped files
+      File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.unescape)}'" }.join("\n"))
+      success = Ffmpeg.new(list, outputs).concat
+      FileUtils.rm list if success
+      success
+    end
 
     def clear
       `cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}`

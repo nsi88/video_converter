@@ -3,12 +3,13 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command
+      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command
     end
 
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
     self.options = {
+      :codec => '-c',
       :video_codec => '-c:v',
       :audio_codec => '-c:a',
       :frame_rate => '-r',
@@ -24,12 +25,17 @@ module VideoConverter
       :format => '-f',
       :bitstream_format => '-bsf',
       :pixel_format => '-pix_fmt',
-      :deinterlace => '-deinterlace'
+      :deinterlace => '-deinterlace',
+      :map => '-map',
+      :segment_time => '-segment_time',
+      :reset_timestamps => '-reset_timestamps'
     }
     self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
+    self.split_command = '%{bin} -fflags +genpts -i %{input} -segment_time %{segment_time} -reset_timestamps 1 -c copy -map 0 -f segment %{output} 1>>%{log} 2>&1 || exit 1'
+    self.concat_command = "%{bin} -f concat -i %{input} -c %{codec} %{output} 1>>%{log} 2>&1 || exit 1"
 
     attr_accessor :input, :group
 
@@ -77,6 +83,16 @@ module VideoConverter
       success
     end
 
+    def split
+      Command.new(self.class.split_command, prepare_params(input, group.first)).execute
+    end
+
+    def concat
+      output = group.first
+      output.codec ||= 'copy'
+      Command.new(self.class.concat_command, prepare_params(input, output)).execute
+    end
+
     private 
 
     def prepare_params input, output
@@ -91,6 +107,8 @@ module VideoConverter
         :input => input.to_s,
         :log => output.log,
         :output => output.ffmpeg_output,
+        :codec => output.codec,
+        :segment_time => output.segment_time,
         :options => self.class.options.map do |output_option, ffmpeg_option|
           if output.send(output_option).present?
             if output.send(output_option) == true

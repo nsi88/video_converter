@@ -17,9 +17,9 @@ module VideoConverter
 
     attr_accessor :uid, :work_dir, :log, :threads, :passlogfile
     attr_accessor :type, :filename
-    attr_accessor :format, :ffmpeg_output, :video_codec, :audio_codec, :bitstream_format, :pixel_format
+    attr_accessor :format, :ffmpeg_output, :codec, :video_codec, :audio_codec, :bitstream_format, :pixel_format, :map
     attr_accessor :one_pass, :video_bitrate, :audio_bitrate
-    attr_accessor :streams, :path, :chunks_dir
+    attr_accessor :streams, :path, :chunks_dir, :segment_time, :reset_timestamps
     attr_accessor :frame_rate, :keyint_min, :keyframe_interval, :force_keyframes
     attr_accessor :size, :width, :height, :video_filter
     attr_accessor :thumbnails
@@ -45,14 +45,16 @@ module VideoConverter
         self.format = 'mpegts'
         self.ffmpeg_output = File.join(work_dir, File.basename(filename, '.*') + '.ts')
       else
-        self.format = File.extname(filename).sub('.', '')
+        self.format = params[:format] || File.extname(filename).sub('.', '')
         self.ffmpeg_output = File.join(work_dir, filename)
         raise ArgumentError.new('Invalid playlist extension') if type == 'playlist' && !['f4m', 'm3u8'].include?(format)
       end
-      self.video_codec = params[:video_codec] || self.class.video_codec
-      self.audio_codec = params[:audio_codec] || self.class.audio_codec
+      self.codec = params[:codec]
+      self.video_codec = params[:video_codec] || self.class.video_codec unless codec
+      self.audio_codec = params[:audio_codec] || self.class.audio_codec unless codec
       self.bitstream_format = params[:bitstream_format]
       self.pixel_format = params[:pixel_format] || self.class.pixel_format
+      self.map = params[:map]
 
       # Rate controle
       self.one_pass = !!params[:one_pass]
@@ -66,6 +68,8 @@ module VideoConverter
         self.chunks_dir = File.join(work_dir, File.basename(filename, '.*'))
         FileUtils.mkdir_p(chunks_dir)
       end
+      self.segment_time = params[:segment_time]
+      self.reset_timestamps = params[:reset_timestamps]
 
       # Frame rate
       self.frame_rate = params[:frame_rate]
