@@ -34,8 +34,8 @@ module VideoConverter
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
-    self.split_command = '%{bin} -fflags +genpts -i %{input} -segment_time %{segment_time} -reset_timestamps 1 -c copy -map 0:0 -map 0:1 -f segment %{output} 1>>%{log} 2>&1 || exit 1'
-    self.concat_command = "%{bin} -f concat -i %{input} -c %{codec} %{output} 1>>%{log} 2>&1 || exit 1"
+    self.split_command = '%{bin} -fflags +genpts -i %{input} -segment_time %{segment_time} -reset_timestamps 1 -c:v %{video_codec} -c:a %{audio_codec} -map 0:0 -map 0:1 -f segment %{output} 1>>%{log} 2>&1 || exit 1'
+    self.concat_command = "%{bin} -f concat -i %{input} -c:v %{video_codec} -c:a %{audio_codec} %{output} 1>>%{log} 2>&1 || exit 1"
 
     attr_accessor :input, :group
 
@@ -88,9 +88,7 @@ module VideoConverter
     end
 
     def concat
-      output = group.first
-      output.codec ||= 'copy'
-      Command.new(self.class.concat_command, prepare_params(input, output)).execute
+      Command.new(self.class.concat_command, prepare_params(input, group.first)).execute
     end
 
     private 
@@ -107,7 +105,8 @@ module VideoConverter
         :input => input.to_s,
         :log => output.log,
         :output => output.ffmpeg_output,
-        :codec => output.codec,
+        :video_codec => output.video_codec,
+        :audio_codec => output.audio_codec,
         :segment_time => output.segment_time,
         :options => self.class.options.map do |output_option, ffmpeg_option|
           if output.send(output_option).present?
