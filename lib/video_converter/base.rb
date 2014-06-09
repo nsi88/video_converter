@@ -75,6 +75,10 @@ module VideoConverter
       success
     end
 
+    def mux
+      Ffmpeg.new(inputs, outputs).mux
+    end
+
     def clear
       `cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}`
       outputs.map { |output| output.passlogfile }.uniq.compact.each { |passlogfile| `rm #{passlogfile}*` }

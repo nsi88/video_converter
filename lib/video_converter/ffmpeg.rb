@@ -3,7 +3,7 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command
+      attr_accessor :bin, :ffprobe_bin, :options, :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command
     end
 
     self.bin = '/usr/local/bin/ffmpeg'
@@ -34,8 +34,9 @@ module VideoConverter
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
-    self.split_command = '%{bin} -fflags +genpts -i %{input} -segment_time %{segment_time} -reset_timestamps 1 -c:v %{video_codec} -c:a %{audio_codec} -map 0:0 -map 0:1 -f segment %{output} 1>>%{log} 2>&1 || exit 1'
+    self.split_command = '%{bin} -fflags +genpts -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.concat_command = "%{bin} -f concat -i %{input} -c:v %{video_codec} -c:a %{audio_codec} %{output} 1>>%{log} 2>&1 || exit 1"
+    self.mux_command = "%{bin} %{inputs} %{maps} -c copy %{output} 1>>%{log} 2>&1 || exit 1"
 
     attr_accessor :input, :group
 
@@ -84,11 +85,23 @@ module VideoConverter
     end
 
     def split
-      Command.new(self.class.split_command, prepare_params(input, group.first)).execute
+      output = group.first
+      output.format = 'segment'
+      output.reset_timestamps ||= 1
+      output.map ||= 0
+      output.codec ||= 'copy'
+      Command.new(self.class.split_command, prepare_params(input, output)).execute
     end
 
     def concat
       Command.new(self.class.concat_command, prepare_params(input, group.first)).execute
+    end
+
+    def mux
+      Command.new(self.class.mux_command, prepare_params(input, group.first).merge({
+        :inputs => input.map { |i| "-i #{i}" }.join(' '),
+        :maps => input.each_with_index.map { |_,i| "-map #{i}:0" }.join(' ')
+      })).execute
     end
 
     private 

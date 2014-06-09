@@ -128,7 +128,7 @@ class VideoConverterTest < Test::Unit::TestCase
     setup do
       (@c = VideoConverter.new(
         :input => "test/fixtures/test (1).mp4",
-        :output => { :segment_time => 2, :filename => '%01d.nut' }
+        :output => { :segment_time => 2, :codec => 'copy', :filename => '%01d.nut' }
       )).split
     end
     should 'segment file' do
@@ -153,4 +153,22 @@ class VideoConverterTest < Test::Unit::TestCase
       )
     end
   end
+
+  # context 'muxing' do
+  #   setup do
+  #     input = "test/fixtures/test (1).mp4"
+  #     (c1 = VideoConverter.new(:uid => 'test', :input => input, :output => { :map => '0:0', :filename => 'video.mp4' })).convert
+  #     (c2 = VideoConverter.new(:uid => 'test', :input => input, :output => { :map => '0:1', :filename => 'audio.wav' })).convert
+  #     (@c = VideoConverter.new(:uid => 'test', :input => [c1.outputs.first.ffmpeg_output, c2.outputs.first.ffmpeg_output], :output => { :filename => 'mux.mp4' })).mux
+  #     @metadata = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.metadata
+  #   end
+  #   should 'mux streams' do
+  #     assert File.exists?(@c.outputs.first.ffmpeg_output)
+  #     assert_equal '0:0', @metadata[:video_stream]
+  #     assert_equal '0:1', @metadata[:audio_stream]
+  #   end
+  #   teardown do
+  #     #FileUtils.rm_r @c.outputs.first.work_dir
+  #   end
+  # end
 end
