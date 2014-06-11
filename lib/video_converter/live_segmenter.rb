@@ -65,7 +65,7 @@ module VideoConverter
         res = File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n" + res
         res = "#EXTINF:%0.2f,\n" % duration + res
       end
-      res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
+      res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max.to_f.ceil}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
       !!File.open(File.join(output.work_dir, output.filename), 'w') { |f| f.write res }
     end
 
