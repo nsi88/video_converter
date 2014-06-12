@@ -6,7 +6,7 @@ module VideoConverter
       attr_accessor :dry_run, :verbose
     end
     self.dry_run = false
-    self.verbose = false
+    self.verbose = true
 
     def self.chain(*commands)
       commands.map { |c| "(#{c})" }.join(' && ')

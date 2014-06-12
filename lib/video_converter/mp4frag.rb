@@ -1,24 +1,17 @@
 # encoding: utf-8
 
 module VideoConverter
-  class Hds
+  class Mp4frag
   	class << self
       attr_accessor :bin, :command
     end
     self.bin = '/usr/local/bin/mp4frag'
     self.command = '%{bin} %{inputs} --manifest %{manifest} --index 1>>%{log} 2>&1 || exit 1'
 
-    attr_accessor :input, :group
-
-    def initialize input, group
-      self.input = input
-      self.group = group
-    end
-
-    def run
+    def self.run(input, outputs)
       success = true
       threads = []
-			command = Command.new(self.class.command, prepare_params(group))
+			command = Command.new(self.command, prepare_params(outputs))
       if VideoConverter.paral
         threads << Thread.new { success &&= command.execute }
       else
@@ -30,12 +23,12 @@ module VideoConverter
 
 		private
 
-		def prepare_params(group)
+		def self.prepare_params(outputs)
 			{
-				:bin => self.class.bin,
-				:inputs => group.select { |output| output.type != 'playlist' }.map { |input| "--src #{input.ffmpeg_output}" }.join(' '),
-				:manifest => group.detect { |output| output.type == 'playlist' }.ffmpeg_output,
-				:log => group.first.log
+				:bin => bin,
+				:inputs => outputs.select { |output| output.type != 'playlist' }.map { |input| "--src #{input.ffmpeg_output}" }.join(' '),
+				:manifest => outputs.detect { |output| output.type == 'playlist' }.ffmpeg_output,
+				:log => outputs.first.log
 			}
 		end
 	end

@@ -2,40 +2,28 @@
 
 module VideoConverter
   class Base
-    attr_accessor :uid, :outputs, :inputs, :clear_tmp
+    attr_accessor :inputs, :outputs
 
     def initialize params
-      self.uid = params[:uid] || (Socket.gethostname + object_id.to_s)
-      self.outputs = Array.wrap(params[:output] || params[:outputs]).map do |output| 
-        Output.new(output.merge(:uid => uid))
-      end
-      self.inputs = Array.wrap(params[:input] || params[:inputs]).map do |input|
-        Input.new(input, outputs)
-      end
-      self.clear_tmp = params[:clear_tmp].nil? ? true : params[:clear_tmp]
+      self.inputs = Array.wrap(params[:input] || params[:inputs]).map { |input|  Input.new(input) }
+      self.outputs = Array.wrap(params[:output] || params[:outputs]).map { |output| Output.new(output.merge(:uid => params[:uid] ? params[:uid].to_s : (Socket.gethostname + object_id.to_s))) }
     end
 
     def run
-      success = convert && faststart && make_screenshots && segment
-      clear if clear_tmp && success
-      success
+      convert && faststart && make_screenshots && segment && clear
     end
 
+    # XXX inject instead of each would be better
     def convert
       success = true
-      inputs.each do |input|
-        input.output_groups.each do |group|
-          success &&= Ffmpeg.new(input, group).run
-        end
-      end
+      inputs.each { |input| success &&= Ffmpeg.new(input, outputs).run }
       success
     end
 
+    # TODO use for faststart ffmpeg moveflags
     def faststart
       success = true
-      outputs.each do |output|
-        success &&= Faststart.new(output).run if output.faststart
-      end
+      outputs.each { |output| success &&= Faststart.new(output).run if output.faststart }
       success
     end
 
@@ -50,39 +38,42 @@ module VideoConverter
     def segment
       success = true
       inputs.each do |input|
-        input.output_groups.each do |group|
+        input.output_groups(input.select_outputs(outputs)).each do |group|
           if playlist = group.detect { |output| output.type == 'playlist' }
-            success &&= if playlist.format == 'm3u8'
-              LiveSegmenter.new(input, group).run
+            success &&= if File.extname(playlist.filename) == '.m3u8'
+              LiveSegmenter.run(input, group)
             else
-              Hds.new(input, group).run
+              Mp4frag.run(input, group)
             end
           end
         end
       end
+      success
     end
 
     def split
-      Ffmpeg.new(inputs.first, outputs).split
+      Ffmpeg.split(inputs.first, outputs.first)
     end
 
     def concat
-      list = File.join(outputs.first.work_dir, 'list.txt')
+      output = outputs.first
+      list = File.join(output.work_dir, 'list.txt')
       # NOTE ffmpeg concat list requires unescaped files
       File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.unescape)}'" }.join("\n"))
-      success = Ffmpeg.new(list, outputs).concat
+      success = Ffmpeg.concat(list, output)
       FileUtils.rm list if success
       success
     end
 
     def mux
-      Ffmpeg.new(inputs, outputs).mux
+      Ffmpeg.mux(inputs, outputs.first)
     end
 
     def clear
-      `cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}`
-      outputs.map { |output| output.passlogfile }.uniq.compact.each { |passlogfile| `rm #{passlogfile}*` }
-      outputs.select { |output| output.type == 'segmented' }.each { |output| `rm #{output.ffmpeg_output}` }
+      Command.new("cat #{outputs.first.log} >> #{VideoConverter.log} && rm #{outputs.first.log}").execute
+      outputs.map { |output| output.options[:passlogfile] }.uniq.compact.each { |passlogfile| Command.new("rm #{passlogfile}*").execute }
+      outputs.select { |output| output.type == 'segmented' }.each { |output| Command.new("rm #{output.ffmpeg_output}").execute }
+      true
     end
   end
 end

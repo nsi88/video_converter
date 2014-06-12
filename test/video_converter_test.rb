@@ -18,11 +18,11 @@ class VideoConverterTest < Test::Unit::TestCase
 
       should 'create qualities and thumbnails' do
         3.times.each do |n|
-          q = File.join(VideoConverter::Output.work_dir, @c.uid, "q#{n + 1}.mp4")
+          q = File.join(@c.outputs.first.work_dir, "q#{n + 1}.mp4")
           assert File.exists?(q)
           assert File.size(q) > 0
         end
-        assert_equal %w(. .. scr004.jpg scr004_norm.jpg scr005.jpg scr005_norm.jpg).sort, Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, 'thumbnails')).sort
+        assert_equal %w(. .. scr004.jpg scr004_norm.jpg scr005.jpg scr005_norm.jpg).sort, Dir.entries(File.join(@c.outputs.first.work_dir, 'thumbnails')).sort
       end
     end
   end
@@ -52,10 +52,10 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # TODO verify that chunks have different quality (weight)
             # should create playlists
-            assert File.exists?(playlist = File.join(VideoConverter::Output.work_dir, @c.uid, "#{quality}.m3u8"))
+            assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
             # TODO verify that playlist is valid (contain all chunks and modifiers)
           end
         end
@@ -83,12 +83,12 @@ class VideoConverterTest < Test::Unit::TestCase
 
         should 'generate hds with sync keyframes' do
           %w(sd1.mp4 sd2.mp4 playlist.f4m hd1.mp4 hd2.mp4 hd_playlist.f4m).each do |filename|
-            assert File.exists?(File.join(VideoConverter::Output.work_dir, @c.uid, "#{filename}"))
+            assert File.exists?(File.join(@c.outputs.first.work_dir, "#{filename}"))
           end
 
           assert_equal(
-            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(VideoConverter::Output.work_dir, @c.uid, 'sd1.mp4')).capture),
-            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(VideoConverter::Output.work_dir, @c.uid, 'sd2.mp4')).capture)
+            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).capture),
+            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).capture)
           )
         end
       end
@@ -114,10 +114,10 @@ class VideoConverterTest < Test::Unit::TestCase
       should 'generate hls' do
         %w(q1 q2).each do |quality|
           # should create chunks
-          assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(VideoConverter::Output.work_dir, @c.uid, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+          assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
           # TODO verify that chunks have the same quality (weight)
           # should create playlists
-          assert File.exists?(playlist = File.join(VideoConverter::Output.work_dir, @c.uid, "#{quality}.m3u8"))
+          assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
           # TODO verify that playlist is valid (contain all chunks and modifiers)
         end
       end
