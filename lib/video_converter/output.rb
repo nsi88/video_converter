@@ -12,11 +12,11 @@ module VideoConverter
     attr_accessor :work_dir, :filename, :log, :type, :chunks_dir, :ffmpeg_output, :path, :streams, :width, :height, :one_pass, :rotate, :faststart, :thumbnails, :options
 
     def initialize params = {}
-      self.work_dir = File.join(self.class.work_dir, params.delete(:uid))
+      self.work_dir = File.join(self.class.work_dir, params[:uid])
       FileUtils.mkdir_p(work_dir)
-      self.filename = params.delete(:filename) or raise ArgumentError.new('Filename required')
+      self.filename = params[:filename] or raise ArgumentError.new('Filename required')
       self.log = File.join(work_dir, self.class.log)
-      self.type = params.delete(:type) || 'default'
+      self.type = params[:type] || 'default'
       if type == 'segmented'
         self.chunks_dir = File.join(work_dir, File.basename(filename, '.*'))
         FileUtils.mkdir_p(chunks_dir)
@@ -26,7 +26,7 @@ module VideoConverter
         self.ffmpeg_output = File.join(work_dir, filename)
       end
       raise ArgumentError.new('Invalid type') unless %w(default segmented playlist).include?(type)
-      [:path, :streams, :width, :height, :one_pass, :rotate, :faststart, :thumbnails].each { |attr| self.send("#{attr}=", params.delete(attr)) }
+      [:path, :streams, :width, :height, :one_pass, :rotate, :faststart, :thumbnails].each { |attr| self.send("#{attr}=", params[attr]) }
       [:video_bitrate, :audio_bitrate].each { |bitrate| params[bitrate] = "#{params[bitrate]}k" if params[bitrate].is_a?(Numeric) }
 
       # options will be substituted to convertation commands

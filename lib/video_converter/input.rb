@@ -40,7 +40,7 @@ module VideoConverter
           @metadata[:duration_in_ms] = ((m[1].to_i * 3600 + m[2].to_i * 60 + m[3].to_f) * 1000).to_i
           @metadata[:total_bitrate_in_kbps] = m[4].to_i
         end
-        if m = s.match(/Stream\s#(\d:\d).*?Video:\s(\S+).*?,\s*((\d+)x(\d+)).*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps/)
+        if m = s.match(/Stream\s#(\d:\d).*?Video:\s(\S+).*?,\s*((\d+)x(\d+))(?:.*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps)?/)
           @metadata[:video_stream] = m[1]
           @metadata[:video_codec] = m[2]
           @metadata[:width] = m[4].to_i
