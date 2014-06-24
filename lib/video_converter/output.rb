@@ -9,7 +9,7 @@ module VideoConverter
     self.log = 'converter.log'
     self.keyframe_interval_in_seconds = 4
 
-    attr_accessor :work_dir, :filename, :log, :type, :chunks_dir, :ffmpeg_output, :path, :streams, :width, :height, :one_pass, :rotate, :faststart, :thumbnails, :options
+    attr_accessor :work_dir, :filename, :log, :type, :chunks_dir, :ffmpeg_output, :path, :streams, :width, :height, :one_pass, :rotate, :faststart, :thumbnails, :uid, :options
 
     def initialize params = {}
       self.work_dir = File.join(self.class.work_dir, params[:uid])

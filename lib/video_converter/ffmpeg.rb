@@ -3,34 +3,26 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :bin, :ffprobe_bin, :options
+      attr_accessor :aliases, :bin, :ffprobe_bin
       attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command
     end
 
+    self.aliases = {
+      :codec => 'c',
+      :video_codec => 'c:v',
+      :audio_codec => 'c:a',
+      :frame_rate => 'r',
+      :keyframe_interval => 'g',
+      :video_bitrate => 'b:v',
+      :audio_bitrate => 'b:a',
+      :size => 's',
+      :video_filter => 'vf',
+      :format => 'f',
+      :bitstream_format => 'bsf',
+      :pixel_format => 'pix_fmt'
+    }
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
-    self.options = {
-      :codec => '-c',
-      :video_codec => '-c:v',
-      :audio_codec => '-c:a',
-      :frame_rate => '-r',
-      :keyint_min => '-keyint_min',
-      :keyframe_interval => '-g',
-      :force_keyframes => '-force_key_frames',
-      :passlogfile => '-passlogfile',
-      :video_bitrate => '-b:v',
-      :audio_bitrate => '-b:a',
-      :size => '-s',
-      :video_filter => '-vf',
-      :threads => '-threads',
-      :format => '-f',
-      :bitstream_format => '-bsf',
-      :pixel_format => '-pix_fmt',
-      :deinterlace => '-deinterlace',
-      :map => '-map',
-      :segment_time => '-segment_time',
-      :reset_timestamps => '-reset_timestamps'
-    }
     
     self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
@@ -117,7 +109,7 @@ module VideoConverter
             self.class.second_pass_command
           else
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
-            output.options[:force_keyframes] = (input.metadata[:duration_in_ms] / 1000 / Output.keyframe_interval_in_seconds).times.to_a.map { |t| t * Output.keyframe_interval_in_seconds }.join(',')
+            output.options[:force_key_frames] = (input.metadata[:duration_in_ms] / 1000 / Output.keyframe_interval_in_seconds).times.to_a.map { |t| t * Output.keyframe_interval_in_seconds }.join(',')
             Command.chain(self.class.first_pass_command, self.class.second_pass_command)
           end
 
@@ -137,7 +129,7 @@ module VideoConverter
     private 
 
     def common_first_pass?(qualities)
-      # if group qualities have different sizes use force_keyframes and separate first passes
+      # if group qualities have different sizes use force_key_frames and separate first passes
       qualities.uniq { |o| o.height }.count == 1 && qualities.uniq { |o| o.width }.count == 1 && qualities.uniq { |o| o.options[:size] }.count == 1
     end
 
@@ -150,7 +142,12 @@ module VideoConverter
       {
         :bin => bin,
         :input => input.to_s,
-        :options => output.options.map { |option, value| value == true ? options[option] : "#{options[option]} #{value}" if value && options[option] }.join(' '),
+        :options => output.options.map do |option, value|
+          if value && !output.respond_to?(option)
+            option = '-' + (aliases[option] || option).to_s
+            value == true ? option : "#{option} #{value}"
+          end
+        end.compact.join(' '),
         :output => output.ffmpeg_output,
         :log => output.log
       }
