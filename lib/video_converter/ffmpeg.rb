@@ -36,12 +36,12 @@ module VideoConverter
     self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
-    self.split_command = '%{bin} -fflags +genpts -i %{input} -f segment %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.split_command = '%{bin} -fflags +genpts -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.concat_command = "%{bin} -f concat -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
 
     def self.split(input, output)
-      output.options = { :map => 0, :codec => 'copy', :reset_timestamps => 1 }.merge(output.options)
+      output.options = { :format => 'segment', :map => 0, :codec => 'copy', :reset_timestamps => 1 }.merge(output.options)
       Command.new(split_command, prepare_params(input, output)).execute
     end
     
