@@ -56,13 +56,7 @@ module VideoConverter
     end
 
     def concat
-      output = outputs.first
-      list = File.join(output.work_dir, 'list.txt')
-      # NOTE ffmpeg concat list requires unescaped files
-      File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.unescape)}'" }.join("\n"))
-      success = Ffmpeg.concat(list, output)
-      FileUtils.rm list if success
-      success
+      Ffmpeg.concat(inputs, outputs.first)
     end
 
     def mux

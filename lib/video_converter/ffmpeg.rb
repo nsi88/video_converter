@@ -37,11 +37,12 @@ module VideoConverter
       Command.new(split_command, prepare_params(input, output)).execute
     end
     
-    def self.concat(list, output)
+    def self.concat(inputs, output, method = nil)
+      method = %w(ts mpg mpeg).include?(File.extname(inputs.first.to_s).delete('.')) ? :protocol : :muxer unless method
       output.options = { :codec => 'copy' }.merge(output.options)
-      Command.new(concat_command, prepare_params(list, output)).execute
+      send("concat_#{method}", inputs, output)
     end
-    
+
     def self.mux(inputs, output)
       output.options = { :codec => 'copy' }.merge(output.options)
       Command.new(mux_command, prepare_params(nil, output).merge({
@@ -127,6 +128,19 @@ module VideoConverter
     end
 
     private 
+
+    def self.concat_muxer(inputs, output)
+      list = File.join(output.work_dir, 'list.txt')
+      # NOTE ffmpeg concat list requires unescaped files
+      File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.unescape)}'" }.join("\n"))
+      success = Command.new(concat_command, prepare_params(list, output)).execute
+      FileUtils.rm list if success
+      success
+    end
+
+    def self.concat_protocol(inputs, output)
+      Command.new(one_pass_command, prepare_params('"concat:' + inputs.join('|') + '"', output)).execute
+    end
 
     def common_first_pass?(qualities)
       # if group qualities have different sizes use force_key_frames and separate first passes
