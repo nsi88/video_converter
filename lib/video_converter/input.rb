@@ -3,11 +3,12 @@
 module VideoConverter
   class Input
     class << self
-      attr_accessor :metadata_command, :show_frame_command
+      attr_accessor :metadata_command, :show_streams_command, :show_frames_command
     end
 
     self.metadata_command = "%{ffprobe_bin} %{input} 2>&1"
-    self.show_frame_command = "%{ffprobe_bin} -show_frames -select_streams v %{input} 2>/dev/null | head -n 24"
+    self.show_streams_command = "%{ffprobe_bin} -show_streams -select_streams %{stream} %{input} 2>/dev/null"
+    self.show_frames_command = "%{ffprobe_bin} -show_frames -select_streams %{stream} %{input} 2>/dev/null | head -n 24"
 
     attr_accessor :input, :output_groups, :metadata
 
@@ -62,8 +63,12 @@ module VideoConverter
         end
         @metadata[:format] = File.extname(input).delete('.')
 
+        # stream metadata
+        s = Command.new(self.class.show_streams_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :stream => 'v', :input => input).capture
+        @metadata[:video_start_time] = s.match(/start_time=([\d.]+)/).to_a[1].to_f
+
         # frame metadata
-        s = Command.new(self.class.show_frame_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input).capture
+        s = Command.new(self.class.show_frames_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :stream => 'v', :input => input).capture
         @metadata[:interlaced] = true if s.include?('interlaced_frame=1')
       end
       @metadata
