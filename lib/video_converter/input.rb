@@ -66,6 +66,7 @@ module VideoConverter
         # stream metadata
         s = Command.new(self.class.show_streams_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :stream => 'v', :input => input).capture
         @metadata[:video_start_time] = s.match(/start_time=([\d.]+)/).to_a[1].to_f
+        @metadata[:video_frame_rate] = s.match(/r_frame_rate=([\d\/]+)/)[1]
 
         # frame metadata
         s = Command.new(self.class.show_frames_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :stream => 'v', :input => input).capture
