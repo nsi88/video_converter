@@ -158,8 +158,8 @@ module VideoConverter
         :input => input.to_s,
         :options => output.options.map do |option, values|
           unless output.respond_to?(option)
+            option = '-' + (aliases[option] || option).to_s
             Array.wrap(values).map do |value|
-              option = '-' + (aliases[option] || option).to_s
               value == true ? option : "#{option} #{value}"
             end.join(' ')
           end
