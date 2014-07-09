@@ -156,10 +156,12 @@ module VideoConverter
       {
         :bin => bin,
         :input => input.to_s,
-        :options => output.options.map do |option, value|
-          if value && !output.respond_to?(option)
+        :options => output.options.map do |option, values|
+          unless output.respond_to?(option)
             option = '-' + (aliases[option] || option).to_s
-            value == true ? option : "#{option} #{value}"
+            Array.wrap(values).map do |value|
+              value == true ? option : "#{option} #{value}"
+            end.join(' ')
           end
         end.compact.join(' '),
         :output => output.ffmpeg_output,
