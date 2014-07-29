@@ -23,6 +23,11 @@ module VideoConverter
         if File.extname(filename) == '.m3u8'
           self.ffmpeg_output = chunks_dir + '.ts'
           params[:format] = 'mpegts'
+        elsif File.extname(filename) == '.f4m'
+          self.ffmpeg_output = chunks_dir = '.mp4'
+          params[:format] = 'mp4'
+        else
+          raise "Invalid filename for type segmented"
         end
       else
         self.ffmpeg_output = File.join(work_dir, filename)
