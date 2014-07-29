@@ -20,8 +20,10 @@ module VideoConverter
       if type == 'segmented'
         self.chunks_dir = File.join(work_dir, File.basename(filename, '.*'))
         FileUtils.mkdir_p(chunks_dir)
-        self.ffmpeg_output = chunks_dir + '.ts'
-        params[:format] = 'mpegts'
+        if File.extname(filename) == '.m3u8'
+          self.ffmpeg_output = chunks_dir + '.ts'
+          params[:format] = 'mpegts'
+        end
       else
         self.ffmpeg_output = File.join(work_dir, filename)
       end
