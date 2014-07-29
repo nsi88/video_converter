@@ -14,9 +14,16 @@ module VideoConverter
 
     attr_accessor :command
 
-    def initialize command, params = {}
-      self.command = command.gsub(/%\{(\w+?)\}/) { |m| params[$1.to_sym] }
-      raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.match(/%{[\w\-.]+}/)
+    def initialize command, *params
+      self.command = command.dup
+      if params.any?
+        if params[0].is_a?(Hash)
+          self.command.gsub!(/%\{(\w+?)\}/) { |m| params[0][$1.to_sym] }
+        else
+          self.command.gsub!('?') { params.shift }
+        end
+      end
+      raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.include?('?') || self.command.match(/%{[\w\-.]+}/)
     end
 
     def execute params = {}

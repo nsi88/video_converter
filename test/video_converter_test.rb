@@ -101,8 +101,8 @@ class VideoConverterTest < Test::Unit::TestCase
         (@c = VideoConverter.new(
           :input => ["test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4"], 
           :output => [
-            {:filename=>"q1.m3u8", :path=>"test/fixtures/test (1).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", :bitstream_format=>"h264_mp4toannexb"}, 
-            {:filename=>"q2.m3u8", :path=>"test/fixtures/test (2).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", :bitstream_format=>"h264_mp4toannexb"}, 
+            {:filename=>"q1.m3u8", :path=>"test/fixtures/test (1).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"}, 
+            {:filename=>"q2.m3u8", :path=>"test/fixtures/test (2).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"}, 
             {:filename=>"playlist.m3u8", :type=>"playlist", :streams=>[
               {:path=>"q1.m3u8", :bandwidth=>464}, {:path=>"q2.m3u8", :bandwidth=>928}
             ]}
