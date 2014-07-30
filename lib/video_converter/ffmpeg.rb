@@ -33,7 +33,7 @@ module VideoConverter
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
 
     def self.split(input, output)
-      output.options = { :format => 'segment', :map => 0, :codec => 'copy', :reset_timestamps => 1 }.merge(output.options)
+      output.options = { :format => 'segment', :map => 0, :codec => 'copy' }.merge(output.options)
       Command.new(split_command, prepare_params(input, output)).execute
     end
     
