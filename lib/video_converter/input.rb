@@ -30,24 +30,16 @@ module VideoConverter
         @metadata = {}
         # common metadata
         s = Command.new(self.class.metadata_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input).capture
-        if m = s.match(/Stream\s#(\d:\d).*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/)
-          @metadata[:audio_stream] = m[1]
-          @metadata[:audio_codec] = m[2]
-          @metadata[:audio_sample_rate] = m[3].to_i
-          @metadata[:audio_bitrate_in_kbps] = m[4].to_i
-        end
         @metadata[:channels] = s.scan(/Stream #\d+:\d+/).count
         if m = s.match(/Duration:\s+(\d+):(\d+):([\d.]+).*?bitrate:\s*(\d+)\s*kb\/s/)
           @metadata[:duration_in_ms] = ((m[1].to_i * 3600 + m[2].to_i * 60 + m[3].to_f) * 1000).to_i
           @metadata[:total_bitrate_in_kbps] = m[4].to_i
         end
-        if m = s.match(/Stream\s#(\d:\d).*?Video:\s([[:alnum:]]+).*?,\s*((\d+)x(\d+))(?:.*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps)?/)
-          @metadata[:video_stream] = m[1]
-          @metadata[:video_codec] = m[2]
-          @metadata[:width] = m[4].to_i
-          @metadata[:height] = m[5].to_i
-          @metadata[:video_bitrate_in_kbps] = m[6].to_i
-          @metadata[:frame_rate] = m[7].to_f
+        @metadata[:audio_streams] = s.scan(/Stream\s#(\d:\d).*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/).map do |stream|
+          Hash[[:map, :audio_codec, :audio_sample_rate, :audio_bitrate_in_kbps].zip(stream)]
+        end
+        @metadata[:video_streams] = s.scan(/Stream\s#(\d:\d).*?Video:\s([[:alnum:]]+).*?,\s*((\d+)x(\d+))(?:.*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps)?/).map do |stream|
+          Hash[[:map, :video_codec, :width, :height, :video_bitrate_in_kbps, :frame_rate].zip(stream)]
         end
         if m = s.match(/rotate\s*\:\s*(\d+)/)
           @metadata[:rotate] = m[1].to_i
