@@ -55,8 +55,8 @@ module VideoConverter
       Ffmpeg.split(inputs.first, outputs.first)
     end
 
-    def concat
-      Ffmpeg.concat(inputs, outputs.first)
+    def concat method = nil
+      Ffmpeg.concat(inputs, outputs.first, method)
     end
 
     def mux
