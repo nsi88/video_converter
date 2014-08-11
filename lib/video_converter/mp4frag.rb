@@ -8,7 +8,7 @@ module VideoConverter
     self.bin = '/usr/local/bin/mp4frag'
     self.command = '%{bin} %{inputs} --manifest %{manifest} --index 1>>%{log} 2>&1 || exit 1'
 
-    def self.run(input, outputs)
+    def self.run(outputs)
       success = true
       threads = []
 			command = Command.new(self.command, prepare_params(outputs))

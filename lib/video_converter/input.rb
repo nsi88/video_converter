@@ -77,10 +77,7 @@ module VideoConverter
       groups = groups.values 
 
       # qualities of one playlist are one group
-      (outputs - groups.flatten).select { |output| output.type == 'playlist' }.each do |playlist|
-        paths = playlist.streams.map { |stream| stream[:path] }
-        groups << outputs.select { |output| paths.include?(output.filename) }.unshift(playlist)
-      end
+      groups += outputs.select { |output| output.type == 'playlist' }.map { |playlist| playlist.output_group(outputs) }
       
       # other outputs are separate groups
       (outputs - groups.flatten).each { |output| groups << [output] }

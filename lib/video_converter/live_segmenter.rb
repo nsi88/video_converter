@@ -13,7 +13,7 @@ module VideoConverter
 
     self.command = '%{ffmpeg_bin} -i %{ffmpeg_output} -c:v copy -c:a copy -f mpegts pipe:1 2>>/dev/null | %{bin} %{keyframe_interval_in_seconds} %{chunks_dir} %{chunk_prefix} %{encoding_profile} 1>>%{log} 2>&1'
 
-    def self.run(input, outputs)
+    def self.run(outputs)
       success = true
       threads = []
       p = Proc.new do |output|

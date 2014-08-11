@@ -39,5 +39,10 @@ module VideoConverter
       # options will be substituted to convertation commands
       self.options = params
     end
+
+    def output_group(outputs)
+      paths = streams.map { |stream| stream[:path] }
+      outputs.select { |output| paths.include?(output.filename) }.unshift(self)
+    end
   end
 end

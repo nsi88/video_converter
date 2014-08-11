@@ -37,16 +37,10 @@ module VideoConverter
 
     def segment
       success = true
-      inputs.each do |input|
-        input.output_groups(input.select_outputs(outputs)).each do |group|
-          if playlist = group.detect { |output| output.type == 'playlist' }
-            success &&= if File.extname(playlist.filename) == '.m3u8'
-              LiveSegmenter.run(input, group)
-            else
-              Mp4frag.run(input, group)
-            end
-          end
-        end
+      outputs.select { |output| output.type == 'playlist' }.each do |playlist|
+        paths = playlist.streams.map { |stream| stream[:path] }
+        group = outputs.select { |output| paths.include?(output.filename) }.unshift(playlist)
+        success &&= (playlist.filename.end_with?('m3u8') ? LiveSegmenter : Mp4frag).send(:run, group)
       end
       success
     end
