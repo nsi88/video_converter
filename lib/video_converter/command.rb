@@ -37,7 +37,7 @@ module VideoConverter
 
     def capture params = {}
       puts command if params[:verbose] || self.class.verbose
-      `#{command}`.encode!('UTF-8', 'UTF-8', :invalid => :replace)
+      `#{command}`.encode('UTF-8', 'binary', :invalid => :replace, :undef => :replace, :replace => '')
     end
 
     def to_s

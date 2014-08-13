@@ -10,7 +10,7 @@ module VideoConverter
     end
 
     def run
-      convert && faststart && make_screenshots && segment && clear
+      convert && faststart && make_screenshots && segment && encrypt && clear
     end
 
     # XXX inject instead of each would be better
@@ -55,6 +55,16 @@ module VideoConverter
 
     def mux
       Ffmpeg.mux(inputs, outputs.first)
+    end
+
+    def encrypt(options = {})
+      outputs.each do |output| 
+        if output.drm == 'adobe'
+          output.options.merge!(options)
+          F4fpackager.run(output) or return false
+        end
+      end
+      true
     end
 
     def clear
