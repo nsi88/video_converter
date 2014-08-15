@@ -69,6 +69,7 @@ module VideoConverter
         video_filter << "scale=#{output.width}:trunc\\(ow/a/2\\)*2" if output.width && !output.height
         video_filter << "scale=trunc\\(oh*a/2\\)*2:#{output.height}" if output.height && !output.width
         video_filter << { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[output.rotate] if output.rotate
+        video_filter << "crop=#{output.crop}" if output.crop
         output.options[:video_filter] = video_filter.join(',') if video_filter.any?
 
         output.options[:format] ||= File.extname(output.filename).delete('.')
