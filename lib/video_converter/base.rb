@@ -30,7 +30,7 @@ module VideoConverter
     def make_screenshots
       success = true
       outputs.each do |output|
-        success &&= VideoScreenshoter.new(output.thumbnails.merge(:input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run if output.thumbnails
+        success &&= VideoScreenshoter.new(output.thumbnails.merge(:ffmpeg => Ffmpeg.bin, :input => output.ffmpeg_output, :output_dir => File.join(output.work_dir, 'thumbnails'))).run if output.thumbnails
       end
       success
     end

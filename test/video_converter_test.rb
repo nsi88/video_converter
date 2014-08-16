@@ -9,7 +9,7 @@ class VideoConverterTest < Test::Unit::TestCase
           :outputs => [
             { :video_bitrate => 300, :filename => 'q1.mp4' }, 
             { :video_bitrate => 400, :filename => 'q2.mp4', :thumbnails => { 
-              :number => 2, :offset_start => '5%', :offset_end => '5%', :presets => { :norm => '-normalize' }
+              :number => 2, :offset_start => '50%', :offset_end => '20%', :presets => { :norm => '-normalize' }, :exact => true
             } },
             { :video_bitrate => 500, :filename => 'q3.mp4' }
           ]
