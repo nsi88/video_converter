@@ -74,8 +74,6 @@ module VideoConverter
 
         output.options[:format] ||= File.extname(output.filename).delete('.')
         output.options = { 
-          :keyint_min => 25, 
-          :keyframe_interval => 100, 
           :threads => 1, 
           :video_codec => 'libx264', 
           :audio_codec => 'libfaac', 
@@ -93,7 +91,11 @@ module VideoConverter
 
         # common first pass
         if !one_pass?(qualities) && common_first_pass?(qualities)
-          qualities.each { |output| output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}.log") }
+          qualities.each do |output| 
+            output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}.log")
+            output.options[:keyint_min] = 25
+            output.options[:keyframe_interval] = 100
+          end
           best_quality = qualities.sort do |q1, q2|
             res = q1.options[:video_bitrate].to_i <=> q2.options[:video_bitrate].to_i
             res = q1.height.to_i <=> q2.height.to_i if res == 0
