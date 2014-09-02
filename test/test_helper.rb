@@ -5,4 +5,4 @@ require 'shoulda-context'
 require 'video_converter'
 
 VideoConverter::Command.verbose = true
-VideoConverter::Output.work_dir = 'tmp'
+VideoConverter::Output.work_dir = File.expand_path('../tmp', File.dirname(__FILE__))
