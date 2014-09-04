@@ -113,7 +113,7 @@ module VideoConverter
             self.class.second_pass_command
           else
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
-            output.options[:force_key_frames] = (input.metadata[:duration_in_ms] / 1000 / Output.keyframe_interval_in_seconds).times.to_a.map { |t| t * Output.keyframe_interval_in_seconds }.join(',')
+            output.options[:force_key_frames] = (input.metadata[:duration_in_ms] / 1000.0 / Output.keyframe_interval_in_seconds).ceil.times.to_a.map { |t| t * Output.keyframe_interval_in_seconds }.join(',')
             Command.chain(self.class.first_pass_command, self.class.second_pass_command)
           end
 
