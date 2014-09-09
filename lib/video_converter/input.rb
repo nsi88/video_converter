@@ -31,9 +31,10 @@ module VideoConverter
         # common metadata
         s = Command.new(self.class.metadata_command, :ffprobe_bin => Ffmpeg.ffprobe_bin, :input => input).capture
         @metadata[:channels] = s.scan(/Stream #\d+:\d+/).count
-        if m = s.match(/Duration:\s+(\d+):(\d+):([\d.]+).*?bitrate:\s*(\d+)\s*kb\/s/)
-          @metadata[:duration_in_ms] = ((m[1].to_i * 3600 + m[2].to_i * 60 + m[3].to_f) * 1000).to_i
-          @metadata[:total_bitrate_in_kbps] = m[4].to_i
+        if m = s.match(/Duration:\s+(\d+):(\d+):([\d.]+),\sstart:\s([\d.]+),\sbitrate:\s*(\d+)\s*kb\/s/)
+          @metadata[:start_in_ms] = (m[4].to_f * 1000).round
+          @metadata[:duration_in_ms] = ((m[1].to_i * 3600 + m[2].to_i * 60 + m[3].to_f) * 1000).to_i - @metadata[:start_in_ms]
+          @metadata[:total_bitrate_in_kbps] = m[5].to_i
         end
         @metadata[:audio_streams] = s.scan(/Stream\s#(\d:\d).*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/).map do |stream|
           Hash[[:map, :audio_codec, :audio_sample_rate, :audio_bitrate_in_kbps].zip(stream)]
