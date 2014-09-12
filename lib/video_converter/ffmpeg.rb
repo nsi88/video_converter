@@ -16,7 +16,6 @@ module VideoConverter
       :video_bitrate => 'b:v',
       :audio_bitrate => 'b:a',
       :size => 's',
-      :video_filter => 'vf',
       :format => 'f',
       :bitstream_format => 'bsf',
       :pixel_format => 'pix_fmt'
@@ -24,9 +23,9 @@ module VideoConverter
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
     
-    self.one_pass_command = '%{bin} -i %{input} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.first_pass_command = '%{bin} -i %{input} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
-    self.second_pass_command = '%{bin} -i %{input} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.one_pass_command = '%{bin} -i %{input} %{watermark} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.first_pass_command = '%{bin} -i %{input} %{watermark} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
+    self.second_pass_command = '%{bin} -i %{input} %{watermark} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
     self.split_command = '%{bin} -fflags +genpts -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.concat_command = "%{bin} -f concat -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
@@ -64,13 +63,29 @@ module VideoConverter
         end
         # autodeinterlace
         output.options[:deinterlace] = input.metadata[:interlaced] if output.options[:deinterlace].nil?
-        # video filter
-        video_filter = [output.options[:video_filter]].compact
-        video_filter << "scale=#{output.width}:trunc\\(ow/a/2\\)*2" if output.width && !output.height
-        video_filter << "scale=trunc\\(oh*a/2\\)*2:#{output.height}" if output.height && !output.width
-        video_filter << { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[output.rotate] if output.rotate
-        video_filter << "crop=#{output.crop}" if output.crop
-        output.options[:video_filter] = video_filter.join(',') if video_filter.any?
+        # filter_complex
+        filter_complex = [output.options[:filter_complex]].compact
+        filter_complex << "crop=#{output.crop}" if output.crop
+        if output.width || output.height
+          video_stream = input.metadata[:video_streams].first
+          output.width = (output.height * video_stream[:width].to_f / video_stream[:height].to_f / 2).to_i * 2 if output.height && !output.width
+          output.height = (output.width * video_stream[:height].to_f / video_stream[:width].to_f / 2).to_i * 2 if output.width && !output.height
+          filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
+        end
+        if output.watermarks && (output.watermarks[:width] || output.watermarks[:height])
+          filter_complex = ["[0:v] #{filter_complex.join(',')} [main]"]
+          filter_complex << "[1:v] scale=#{scale(output.watermarks[:width], :w, output.width)}:#{scale(output.watermarks[:height], :h, output.height)} [overlay]"
+          filter_complex << "[main] [overlay] overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}"
+          if output.rotate
+            filter_complex[filter_complex.count-1] += ' [overlayed]'
+            filter_complex << '[overlayed] ' + rotate(output.rotate)
+          end
+          output.options[:filter_complex] = "'#{filter_complex.join(';')}'"
+        else
+          filter_complex << "overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}" if output.watermarks
+          filter_complex << rotate(output.rotate) if output.rotate
+          output.options[:filter_complex] = filter_complex.join(',') if filter_complex.any?
+        end
 
         output.options[:format] ||= File.extname(output.filename).delete('.')
         output.options = { 
@@ -159,6 +174,7 @@ module VideoConverter
       {
         :bin => bin,
         :input => input.to_s,
+        :watermark => (output.watermarks ? '-i ' + output.watermarks[:url] : ''),
         :options => output.options.map do |option, values|
           unless output.respond_to?(option)
             option = '-' + (aliases[option] || option).to_s
@@ -170,6 +186,27 @@ module VideoConverter
         :output => output.ffmpeg_output,
         :log => output.log
       }
+    end
+
+    def scale(size, wh, percent_of = nil)
+      if size.to_s.end_with?('%')
+        percent_of ? (percent_of * size.to_f / 100).to_i : "i#{wh}*#{size.to_f/100}"
+      else
+        size || "trunc\\(o#{{:h => :w, :w => :h}[wh]}/a/2\\)*2"
+      end
+    end
+
+    def overlay(xy, wh)
+      if xy.to_s.end_with?('%')
+        xy = xy.to_f / 100
+        xy < 0 ? "main_#{wh}*#{1 + xy}-overlay_#{wh}" : "main_#{wh}*#{xy}"
+      else
+        xy.to_i < 0 ? "main_#{wh}-overlay_#{wh}#{xy}" : xy.to_i
+      end
+    end
+
+    def rotate(angle)
+      { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[angle]
     end
   end
 end
