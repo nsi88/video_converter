@@ -4,7 +4,7 @@ module VideoConverter
   class Ffmpeg
     class << self
       attr_accessor :aliases, :bin, :ffprobe_bin
-      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command
+      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command, :volume_detect_command
     end
 
     self.aliases = {
@@ -18,7 +18,8 @@ module VideoConverter
       :size => 's',
       :format => 'f',
       :bitstream_format => 'bsf',
-      :pixel_format => 'pix_fmt'
+      :pixel_format => 'pix_fmt',
+      :audio_filter => 'af'
     }
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
@@ -30,6 +31,7 @@ module VideoConverter
     self.split_command = '%{bin} -fflags +genpts -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.concat_command = "%{bin} -f concat -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
+    self.volume_detect_command = "%{bin} -i %{input} -af volumedetect -f null - 2>&1"
 
     def self.split(input, output)
       output.options = { :format => 'segment', :map => 0, :codec => 'copy' }.merge(output.options)
@@ -63,6 +65,8 @@ module VideoConverter
         end
         # autodeinterlace
         output.options[:deinterlace] = input.metadata[:interlaced] if output.options[:deinterlace].nil?
+        # volume
+        output.options[:audio_filter] = "volume=#{volume(output.volume)}" if output.volume
         # filter_complex
         filter_complex = [output.options[:filter_complex]].compact
         filter_complex << "crop=#{output.crop}" if output.crop
@@ -207,6 +211,14 @@ module VideoConverter
 
     def rotate(angle)
       { 90 => 'transpose=2', 180 => 'transpose=2,transpose=2', 270 => 'transpose=1' }[angle]
+    end
+
+    def volume(level)
+      if level.to_s.end_with?('dB')
+        (level.to_f - input.mean_volume.to_f).round(4).to_s + 'dB'
+      else
+        level
+      end
     end
   end
 end
