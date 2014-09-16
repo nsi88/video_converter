@@ -13,13 +13,15 @@ module VideoConverter
 
     def initialize params = {}
       self.work_dir = File.join(self.class.work_dir, params[:uid])
-      FileUtils.mkdir_p(work_dir)
+      mkdir_mode = params.delete(:mkdir_mode)
+      mkdir_mode = mkdir_mode.to_i(8) if mkdir_mode.is_a?(String)
+      FileUtils.mkdir_p(work_dir, :mode => mkdir_mode)
       self.filename = params[:filename] or raise ArgumentError.new('Filename required')
       self.log = File.join(work_dir, self.class.log)
       self.type = params[:type] || 'default'
       if type == 'segmented'
         self.chunks_dir = File.join(work_dir, File.basename(filename, '.*'))
-        FileUtils.mkdir_p(chunks_dir)
+        FileUtils.mkdir_p(chunks_dir, :mode => mkdir_mode)
         if File.extname(filename) == '.m3u8'
           self.ffmpeg_output = chunks_dir + '.ts'
           params[:format] = 'mpegts'
