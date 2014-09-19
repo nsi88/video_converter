@@ -9,12 +9,12 @@ module VideoConverter
     self.log = 'converter.log'
     self.keyframe_interval_in_seconds = 4
 
-    attr_accessor :chunks_dir, :crop, :drm, :faststart, :ffmpeg_output, :filename, :group, :height, :log, :no_fragments, :one_pass, :options, :path, :rotate, :streams, :thumbnails, :type, :uid, :volume, :watermarks, :width, :work_dir
+    attr_accessor :chunks_dir, :crop, :drm, :faststart, :ffmpeg_output, :filename, :group, :height, :log, :mkdir_mode, :no_fragments, :one_pass, :options, :path, :rotate, :streams, :thumbnails, :type, :uid, :volume, :watermarks, :width, :work_dir
 
     def initialize params = {}
       self.work_dir = File.join(self.class.work_dir, params[:uid])
-      mkdir_mode = params.delete(:mkdir_mode)
-      mkdir_mode = mkdir_mode.to_i(8) if mkdir_mode.is_a?(String)
+      self.mkdir_mode = params[:mkdir_mode]
+      self.mkdir_mode = mkdir_mode.to_i(8) if mkdir_mode.is_a?(String)
       FileUtils.mkdir_p(work_dir, :mode => mkdir_mode)
       self.filename = params[:filename] or raise ArgumentError.new('Filename required')
       self.log = File.join(work_dir, self.class.log)
