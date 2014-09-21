@@ -14,9 +14,20 @@ module VideoConverter
 
     attr_accessor :command
 
-    def initialize command, *params
+    def initialize command, params = {}, safe_params = []
       self.command = command.dup
-      self.command.gsub!(/%\{(\w+?)\}/) { |m| params[0][$1.to_sym] } if params.any?
+      if params.any?
+        safe_params = Hash[*safe_params.map { |param| [param, params.delete(param)] }.flatten]
+        params = params.deep_shellescape_values.merge(safe_params)
+        self.command.gsub!(/%\{(\w+?)\}/) do
+          value = params[$1.to_sym]
+          if value.is_a?(Hash)
+            value.deep_join(' ')
+          else
+            value.to_s
+          end
+        end
+      end
       raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.match(/%{[\w\-.]+}/)
     end
 

@@ -24,12 +24,12 @@ module VideoConverter
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
     
-    self.one_pass_command = '%{bin} -i %{input} %{watermark} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.first_pass_command = '%{bin} -i %{input} %{watermark} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
-    self.second_pass_command = '%{bin} -i %{input} %{watermark} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{input} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
-    self.split_command = '%{bin} -fflags +genpts -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.concat_command = "%{bin} -f concat -i %{input} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
+    self.one_pass_command = '%{bin} %{inputs} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.first_pass_command = '%{bin} %{inputs} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
+    self.second_pass_command = '%{bin} %{inputs} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{inputs} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
+    self.split_command = '%{bin} -fflags +genpts %{inputs} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
+    self.concat_command = "%{bin} -f concat %{inputs} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.volume_detect_command = "%{bin} -i %{input} -af volumedetect -c:v copy -f null - 2>&1"
 
@@ -47,8 +47,8 @@ module VideoConverter
     def self.mux(inputs, output)
       output.options = { :codec => 'copy' }.merge(output.options)
       Command.new(mux_command, prepare_params(nil, output).merge({
-        :inputs => inputs.map { |i| "-i #{i}" }.join(' '),
-        :maps => inputs.each_with_index.map { |_,i| "-map #{i}:0" }.join(' ')
+        :inputs => { '-i' => inputs },
+        :maps => { '-map' => inputs.each_with_index.map { |_,i| "#{i}:0" }.join(' ') }
       })).execute
     end
     
@@ -68,14 +68,14 @@ module VideoConverter
         # volume
         output.options[:audio_filter] = "volume=#{volume(output.volume)}" if output.volume
         # filter_complex
-        filter_complex = [output.options[:filter_complex]].compact
-        filter_complex << "crop=#{output.crop}" if output.crop
+        filter_complex = []
+        filter_complex << "crop=#{output.crop.shellescape}" if output.crop
         if output.width || output.height
           output.width = (output.height * aspect(input, output)).ceil / 2 * 2 if output.height && !output.width
           output.height = (output.width / aspect(input, output)).ceil / 2 * 2 if output.width && !output.height
           filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
           if output.options[:aspect]
-            filter_complex << "setdar=#{output.options.delete(:aspect)}"
+            filter_complex << "setdar=#{output.options.delete(:aspect).to_s.shellescape}"
           elsif input.video_stream[:dar_width] && input.video_stream[:dar_height]
             filter_complex << "setdar=#{input.video_stream[:dar_width]}:#{input.video_stream[:dar_height]}"
           end
@@ -127,7 +127,7 @@ module VideoConverter
             # TODO compare by size
             res
           end.last
-          success &&= Command.new(self.class.first_pass_command, self.class.prepare_params(input, best_quality)).execute
+          success &&= Command.new(self.class.first_pass_command, self.class.prepare_params(input, best_quality), [:filter_complex]).execute
         end
 
         qualities.each_with_index do |output, output_index|
@@ -142,7 +142,7 @@ module VideoConverter
           end
 
           # run ffmpeg
-          command = Command.new(command, self.class.prepare_params(input, output))
+          command = Command.new(command, self.class.prepare_params(input, output), [:filter_complex])
           if VideoConverter.paral
             threads << Thread.new { success &&= command.execute }
           else
@@ -159,14 +159,14 @@ module VideoConverter
     def self.concat_muxer(inputs, output)
       list = File.join(output.work_dir, 'list.txt')
       # NOTE ffmpeg concat list requires unescaped files
-      File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.unescape)}'" }.join("\n"))
+      File.write(list, inputs.map { |input| "file '#{File.absolute_path(input.to_s)}'" }.join("\n"))
       success = Command.new(concat_command, prepare_params(list, output)).execute
       FileUtils.rm list if success
       success
     end
 
     def self.concat_protocol(inputs, output)
-      Command.new(one_pass_command, prepare_params('"concat:' + inputs.join('|') + '"', output)).execute
+      Command.new(one_pass_command, prepare_params('"concat:' + inputs.map { |input| input.to_s.shellescape }.join('|') + '"', output), [:inputs]).execute
     end
 
     def common_first_pass?(qualities)
@@ -182,16 +182,10 @@ module VideoConverter
       
       {
         :bin => bin,
-        :input => input.to_s,
-        :watermark => (output.watermarks ? '-i ' + output.watermarks[:url] : ''),
-        :options => output.options.map do |option, values|
-          unless output.respond_to?(option)
-            option = '-' + (aliases[option] || option).to_s
-            Array.wrap(values).map do |value|
-              value == true ? option : "#{option} #{value}"
-            end.join(' ')
-          end
-        end.compact.join(' '),
+        :inputs => { '-i' => output.watermarks ? [input.to_s, output.watermarks[:url]] : input.to_s },
+        :options => Hash[*output.options.select { |option, values| !output.respond_to?(option) }.map do |option, values|
+          ['-' + (aliases[option] || option).to_s, values]
+        end.flatten(1)],
         :output => output.ffmpeg_output,
         :log => output.log
       }

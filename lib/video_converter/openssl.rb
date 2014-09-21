@@ -28,7 +28,7 @@ module VideoConverter
 
     def self.get_encryption_key_path(output)
       if output.encryption_key
-        File.open(File.join(output.work_dir,'video.key'), 'wb') { |f| f.puts output.encryption_key }
+        File.open(File.join(output.work_dir,'video.key'), 'wb') { |f| f.write output.encryption_key }
         'video.key'
       elsif output.encryption_key_url
         uri = URI(output.encryption_key_url)

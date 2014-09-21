@@ -21,10 +21,6 @@ module VideoConverter
       input
     end
 
-    def unescape
-      input.gsub(/\\+([^n])/, '\1')
-    end
-
     def metadata
       unless @metadata
         @metadata = {}
@@ -111,8 +107,7 @@ module VideoConverter
     end
     
     def is_local?
-      # NOTE method file escapes himself
-      File.file?(input.gsub('\\', ''))
+      File.file?(input)
     end
 
   end

@@ -27,7 +27,7 @@ module VideoConverter
 			{
         :work_dir =>  outputs.select { |output| output.type != 'playlist' }.first.work_dir,
 				:bin => bin,
-				:inputs => outputs.select { |output| output.type != 'playlist' }.map { |input| "--src #{File.basename(input.ffmpeg_output)}" }.join(' '),
+				:inputs => { '--src' => outputs.select { |output| output.type != 'playlist' }.map { |input| "#{File.basename(input.ffmpeg_output)}" } },
 				:manifest => outputs.detect { |output| output.type == 'playlist' }.ffmpeg_output,
 				:log => outputs.first.log
 			}

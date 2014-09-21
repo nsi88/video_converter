@@ -26,6 +26,6 @@ module VideoConverter
   self.paral = true
 
   def self.new params
-    VideoConverter::Base.new params.deep_symbolize_keys.deep_shellescape_values
+    VideoConverter::Base.new params.deep_symbolize_keys
   end
 end

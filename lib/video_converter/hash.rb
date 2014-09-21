@@ -18,7 +18,7 @@ class Hash
         value = value.map { |v| v.is_a?(Hash) ? v.deep_shellescape_values : v.shellescape }
       elsif value.is_a? Hash
         value = value.deep_shellescape_values 
-      elsif value.is_a? String
+      elsif value.is_a?(String) && !value.empty?
         value = value.shellescape
       end
       options[key] = value
@@ -28,5 +28,26 @@ class Hash
 
   def deep_shellescape_values!
     self.replace(self.deep_shellescape_values)
-  end  
+  end
+
+  def deep_join(separator)
+  	map do |key, value|
+  		case value.class.to_s
+  		when 'TrueClass'
+  			key
+      when 'FalseClass', 'NilClass'
+        nil
+  		when 'Array'
+  			value.map { |v| "#{key} #{v}"}
+  		when 'Hash'
+  			value.deep_join(separator)
+      else
+        "#{key} #{value}"
+  		end
+  	end.join(separator)
+  end
+
+  def deep_join!(separator)
+  	self.replace(self.deep_join(separator))
+  end
 end

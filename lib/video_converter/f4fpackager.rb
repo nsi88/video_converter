@@ -41,11 +41,11 @@ module VideoConverter
       {
         :bin => bin,
         :input_file => options[:input_file],
-        :options => allowed_options.map do |option|
+        :options => Hash[*allowed_options.map do |option|
           if value = options[option.gsub('-', '_').to_sym]
-            '--' + option + (value == true ? '' : ' ' + value.to_s)
+            ['--' + option, value]
           end
-        end.compact.join(' '),
+        end.compact.flatten],
         :log => options[:log]
       }
     end

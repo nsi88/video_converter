@@ -154,8 +154,8 @@ class VideoConverterTest < Test::Unit::TestCase
           end
 
           assert_equal(
-            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).capture),
-            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :input => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).capture)
+            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).capture),
+            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).capture)
           )
         end
       end
