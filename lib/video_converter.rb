@@ -14,6 +14,7 @@ require "video_converter/mp4frag"
 require "video_converter/object"
 require "video_converter/output"
 require "video_converter/version"
+require "video_converter/openssl"
 require "video_screenshoter"
 
 module VideoConverter

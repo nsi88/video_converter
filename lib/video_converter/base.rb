@@ -58,10 +58,14 @@ module VideoConverter
     end
 
     def encrypt(options = {})
-      outputs.each do |output| 
-        if output.drm == 'adobe'
+      outputs.each do |output|
+        case output.drm
+        when 'adobe'
           output.options.merge!(options)
           F4fpackager.run(output) or return false
+        when 'hls'
+          output.options.merge!(options)
+          OpenSSL.run(output) or return false
         end
       end
       true

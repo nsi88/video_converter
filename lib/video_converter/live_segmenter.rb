@@ -58,7 +58,9 @@ module VideoConverter
         res = File.join(File.basename(output.chunks_dir), File.basename(chunk)) + "\n" + res
         res = "#EXTINF:%0.2f,\n" % duration + res
       end
-      res = "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max.to_f.ceil}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
+      encryption_info = OpenSSL.get_encryption_key_path(output)
+      encryption_info = "#EXT-X-KEY:METHOD=AES-128,URI=\"#{encryption_info}\"\n" if encryption_info
+      res = "#EXTM3U\n#{encryption_info}#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:#{durations.max.to_f.ceil}\n#EXT-X-MEDIA-SEQUENCE:0\n" + res + "#EXT-X-ENDLIST"
       !!File.open(File.join(output.work_dir, output.filename), 'w') { |f| f.write res }
     end
 
