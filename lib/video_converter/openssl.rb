@@ -13,7 +13,7 @@ module VideoConverter
       success = true
       encryption_dir = FileUtils.mkdir_p("#{output.chunks_dir}_encrypted").first
       chunks = Dir::glob(File.join(output.chunks_dir, "#{LiveSegmenter.chunk_prefix}-*[0-9].ts")).sort do |c1, c2|
-        File.basename(c2).match(/\d+/).to_s.to_i <=> File.basename(c1).match(/\d+/).to_s.to_i
+        File.basename(c1).match(/\d+/).to_s.to_i <=> File.basename(c2).match(/\d+/).to_s.to_i
       end
       chunks.each_with_index do |chunk, index|
         initialization_vector = "%032x" % index
