@@ -72,9 +72,11 @@ module VideoConverter
         filter_complex << "crop=#{output.crop}" if output.crop
         if output.width || output.height
           video_stream = input.metadata[:video_streams].first
-          output.width = (output.height * video_stream[:width].to_f / video_stream[:height].to_f / 2).to_i * 2 if output.height && !output.width
-          output.height = (output.width * video_stream[:height].to_f / video_stream[:width].to_f / 2).to_i * 2 if output.width && !output.height
+          width, height = (video_stream[:dar_width] || video_stream[:width]).to_f, (video_stream[:dar_height] || video_stream[:height]).to_f
+          output.width = (output.height * width / height / 2).to_i * 2 if output.height && !output.width
+          output.height = (output.width * height / width / 2).to_i * 2 if output.width && !output.height
           filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
+          filter_complex << "setdar=#{video_stream[:dar_width]}:#{video_stream[:dar_height]}" if video_stream[:dar_width] && video_stream[:dar_height]
         end
         if output.watermarks && (output.watermarks[:width] || output.watermarks[:height])
           filter_complex = ["[0:v] #{filter_complex.join(',')} [main]"]

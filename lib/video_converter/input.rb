@@ -38,8 +38,8 @@ module VideoConverter
         @metadata[:audio_streams] = s.scan(/Stream\s#(\d:\d).*?Audio:\s*(\w+).*?(\d+)\s*Hz.*?(\d+)\s*kb\/s.*?$/).map do |stream|
           Hash[[:map, :audio_codec, :audio_sample_rate, :audio_bitrate_in_kbps].zip(stream)]
         end
-        @metadata[:video_streams] = s.scan(/Stream\s#(\d:\d).*?Video:\s([[:alnum:]]+).*?,\s*(?:(\d+)x(\d+))(?:.*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps)?/).map do |stream|
-          Hash[[:map, :video_codec, :width, :height, :video_bitrate_in_kbps, :frame_rate].zip(stream)]
+        @metadata[:video_streams] = s.scan(/Stream\s#(\d:\d).*?Video:\s([[:alnum:]]+).*?,\s*(?:(\d+)x(\d+))(?:.*?DAR\s(\d+):(\d+))?(?:.*?(\d+)\s*kb\/s.*?([\d.]+)\s*fps)?/).map do |stream|
+          Hash[[:map, :video_codec, :width, :height, :dar_width, :dar_height, :video_bitrate_in_kbps, :frame_rate].zip(stream)]
         end
         if m = s.match(/rotate\s*\:\s*(\d+)/)
           @metadata[:rotate] = m[1].to_i
