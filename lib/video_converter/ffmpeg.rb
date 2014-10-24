@@ -71,12 +71,14 @@ module VideoConverter
         filter_complex = [output.options[:filter_complex]].compact
         filter_complex << "crop=#{output.crop}" if output.crop
         if output.width || output.height
-          video_stream = input.metadata[:video_streams].first
-          width, height = (video_stream[:dar_width] || video_stream[:width]).to_f, (video_stream[:dar_height] || video_stream[:height]).to_f
-          output.width = (output.height * width / height / 2).to_i * 2 if output.height && !output.width
-          output.height = (output.width * height / width / 2).to_i * 2 if output.width && !output.height
+          output.width = (output.height * aspect(input, output)).ceil / 2 * 2 if output.height && !output.width
+          output.height = (output.width / aspect(input, output)).ceil / 2 * 2 if output.width && !output.height
           filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
-          filter_complex << "setdar=#{video_stream[:dar_width]}:#{video_stream[:dar_height]}" if video_stream[:dar_width] && video_stream[:dar_height]
+          if output.options[:aspect]
+            filter_complex << "setdar=#{output.options.delete(:aspect)}"
+          elsif input.video_stream[:dar_width] && input.video_stream[:dar_height]
+            filter_complex << "setdar=#{input.video_stream[:dar_width]}:#{input.video_stream[:dar_height]}"
+          end
         end
         if output.watermarks && (output.watermarks[:width] || output.watermarks[:height])
           filter_complex = ["[0:v] #{filter_complex.join(',')} [main]"]
@@ -220,6 +222,18 @@ module VideoConverter
         (level.to_f - input.mean_volume.to_f).round(4).to_s + 'dB'
       else
         level
+      end
+    end
+
+    def aspect(input, output)
+      if aspect = output.options[:aspect]
+        if matches = aspect.to_s.match(/^(\d+):(\d+)$/)
+          matches[1].to_f / matches[2].to_f
+        else
+          Float(aspect)
+        end
+      else
+        (input.video_stream[:dar_width] || input.video_stream[:width]).to_f / (input.video_stream[:dar_height] || input.video_stream[:height]).to_f
       end
     end
   end

@@ -25,6 +25,42 @@ class VideoConverterTest < Test::Unit::TestCase
         assert_equal %w(. .. scr004.jpg scr004_norm.jpg scr005.jpg scr005_norm.jpg).sort, Dir.entries(File.join(@c.outputs.first.work_dir, 'thumbnails')).sort
       end
     end
+
+    context 'with aspect' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test (1).mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3' }, 
+          ]
+        )).run
+      end
+
+      should 'change aspect' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert_equal 4, m[:dar_width].to_i
+        assert_equal 3, m[:dar_height].to_i
+      end
+    end
+
+    context 'with aspect and resize' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test (1).mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3', :height => 240 }, 
+          ]
+        )).run
+      end
+
+      should 'change aspect and resolution' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert_equal 4, m[:dar_width].to_i
+        assert_equal 3, m[:dar_height].to_i
+        assert_equal 320, m[:width].to_i
+        assert_equal 240, m[:height].to_i
+      end
+    end
   end
 
   context 'segmentation' do
