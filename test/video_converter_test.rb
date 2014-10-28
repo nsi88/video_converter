@@ -88,11 +88,42 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # TODO verify that chunks have different quality (weight)
             # should create playlists
             assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
             # TODO verify that playlist is valid (contain all chunks and modifiers)
+          end
+        end
+      end
+
+      context 'to HLS AES' do
+        setup do
+          (@c = VideoConverter.new(
+            "input"=>["test/fixtures/test (1).mp4"], 
+            "output"=>[
+              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              {"filename"=>"playlist.m3u8", "type"=>"playlist", "streams"=>[
+                {"path"=>"sd1.m3u8", "bandwidth"=>804}, {"path"=>"sd2.m3u8", "bandwidth"=>1300}
+              ]}, 
+              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              {"filename"=>"hd_playlist.m3u8", "type"=>"playlist", "streams"=>[
+                {"path"=>"hd1.m3u8", "bandwidth"=>1598}, {"path"=>"hd2.m3u8", "bandwidth"=>3328}
+              ]}
+            ]
+          )).run
+        end
+
+        should 'generate hls' do
+          %w(sd1 sd2 hd1 hd2).each do |quality|
+            # should create chunks
+            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            # should create playlists
+            assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
+            assert File.read(playlist).include?('EXT-X-KEY:METHOD=AES-128,URI="video.key"')
+            assert File.exists?(File.join(@c.outputs.first.work_dir, 'video.key'))
           end
         end
       end
@@ -150,7 +181,7 @@ class VideoConverterTest < Test::Unit::TestCase
       should 'generate hls' do
         %w(q1 q2).each do |quality|
           # should create chunks
-          assert_equal ['s-00001.ts', 's-00002.ts', 's-00003.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+          assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
           # TODO verify that chunks have the same quality (weight)
           # should create playlists
           assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
@@ -189,22 +220,4 @@ class VideoConverterTest < Test::Unit::TestCase
       )
     end
   end
-
-  # context 'muxing' do
-  #   setup do
-  #     input = "test/fixtures/test (1).mp4"
-  #     (c1 = VideoConverter.new(:uid => 'test', :input => input, :output => { :map => '0:0', :filename => 'video.mp4' })).convert
-  #     (c2 = VideoConverter.new(:uid => 'test', :input => input, :output => { :map => '0:1', :filename => 'audio.wav' })).convert
-  #     (@c = VideoConverter.new(:uid => 'test', :input => [c1.outputs.first.ffmpeg_output, c2.outputs.first.ffmpeg_output], :output => { :filename => 'mux.mp4' })).mux
-  #     @metadata = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.metadata
-  #   end
-  #   should 'mux streams' do
-  #     assert File.exists?(@c.outputs.first.ffmpeg_output)
-  #     assert_equal '0:0', @metadata[:video_stream]
-  #     assert_equal '0:1', @metadata[:audio_stream]
-  #   end
-  #   teardown do
-  #     #FileUtils.rm_r @c.outputs.first.work_dir
-  #   end
-  # end
 end

@@ -11,8 +11,10 @@ module VideoConverter
 
     def self.run(output)
       success = true
+      playlist = File.join(output.work_dir, output.filename)
+      File.write(playlist, File.read(playlist).sub("#EXTM3U\n", "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"#{OpenSSL.get_encryption_key_path(output)}\"\n"))
       encryption_dir = FileUtils.mkdir_p("#{output.chunks_dir}_encrypted").first
-      chunks = Dir::glob(File.join(output.chunks_dir, "#{LiveSegmenter.chunk_prefix}-*[0-9].ts")).sort do |c1, c2|
+      chunks = Dir::glob(File.join(output.chunks_dir, "*.ts")).sort do |c1, c2|
         File.basename(c1).match(/\d+/).to_s.to_i <=> File.basename(c2).match(/\d+/).to_s.to_i
       end
       chunks.each_with_index do |chunk, index|
