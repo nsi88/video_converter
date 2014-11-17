@@ -96,6 +96,7 @@ module VideoConverter
         end
 
         output.options[:format] ||= File.extname(output.filename).delete('.')
+        output.options[:movflags] = '+faststart' if output.faststart || (output.faststart.nil? && %w(mov mp4).include?(output.options[:format].downcase))
         output.options = { 
           :threads => 1, 
           :video_codec => 'libx264', 

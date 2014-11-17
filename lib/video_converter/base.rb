@@ -10,20 +10,13 @@ module VideoConverter
     end
 
     def run
-      convert && faststart && make_screenshots && segment && encrypt && clear
+      convert && make_screenshots && segment && encrypt && clear
     end
 
     # XXX inject instead of each would be better
     def convert
       success = true
       inputs.each { |input| success &&= Ffmpeg.new(input, outputs).run }
-      success
-    end
-
-    # TODO use for faststart ffmpeg moveflags
-    def faststart
-      success = true
-      outputs.each { |output| success &&= Faststart.new(output).run if output.faststart }
       success
     end
 
@@ -45,18 +38,6 @@ module VideoConverter
       success
     end
 
-    def split
-      Ffmpeg.split(inputs.first, outputs.first)
-    end
-
-    def concat method = nil
-      Ffmpeg.concat(inputs, outputs.first, method)
-    end
-
-    def mux
-      Ffmpeg.mux(inputs, outputs.first)
-    end
-
     def encrypt(options = {})
       outputs.each do |output|
         case output.drm
@@ -76,6 +57,18 @@ module VideoConverter
       outputs.map { |output| output.options[:passlogfile] }.uniq.compact.each { |passlogfile| Command.new("rm #{passlogfile}*").execute }
       outputs.select { |output| output.type == 'segmented' }.each { |output| Command.new("rm #{output.ffmpeg_output}").execute }
       true
+    end
+
+    def split
+      Ffmpeg.split(inputs.first, outputs.first)
+    end
+
+    def concat method = nil
+      Ffmpeg.concat(inputs, outputs.first, method)
+    end
+
+    def mux
+      Ffmpeg.mux(inputs, outputs.first)
     end
   end
 end
