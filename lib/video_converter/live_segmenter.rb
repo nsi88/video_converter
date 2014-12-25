@@ -35,7 +35,7 @@ module VideoConverter
         res += "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=#{stream[:bandwidth].to_i * 1000}\n"
         res += stream[:path] + "\n"
       end
-      res += "#EXT-X-ENDLIST"
+      res += "#EXT-X-ENDLIST\n"
       File.open(File.join(playlist.work_dir, playlist.filename), 'w') { |f| f.write res }
       true
     end
