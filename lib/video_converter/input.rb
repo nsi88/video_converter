@@ -70,6 +70,19 @@ module VideoConverter
       @mean_volume ||= Command.new(Ffmpeg.volume_detect_command, :bin => Ffmpeg.bin, :input => input).capture.match(/mean_volume:\s([-\d.]+)\sdB/).to_a[1]
     end
 
+    def crop_detect(samples = 5)
+      (@crop_detect ||= samples.times.map do |sample|
+        (metadata[:duration_in_ms] / (samples + 1) / 1000.0 * (sample + 1)).round
+      end.uniq.map do |ss|
+        Command.new(Ffmpeg.crop_detect_command, :bin => Ffmpeg.bin, :ss => ss, :input => input, :vframes => 2).capture
+          .match(/Parsed_cropdetect.+crop=(?<crop>(?<w>[-\d]+):(?<h>[-\d]+):(?<x>\d+):(?<y>\d+))/)
+      end.compact.max do |m1, m2|
+        res = m1[:h].to_i <=> m2[:h].to_i
+        res = m1[:w].to_i <=> m2[:w].to_i if res == 0
+        res
+      end || {})[:crop]
+    end
+
     def select_outputs(outputs)
       outputs.select { |output| !output.path || output.path == input }
     end

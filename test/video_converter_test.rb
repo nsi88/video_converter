@@ -78,6 +78,23 @@ class VideoConverterTest < Test::Unit::TestCase
         assert File.exists?(@c.outputs.first.ffmpeg_output)
       end
     end
+
+    context 'with autocrop' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test_crop.mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }, 
+          ]
+        )).run
+      end
+      
+      should 'crop' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert_equal 406, m[:height].to_i
+        assert_equal 720, m[:width].to_i
+      end
+    end
   end
 
   context 'segmentation' do

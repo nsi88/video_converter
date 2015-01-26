@@ -4,7 +4,7 @@ module VideoConverter
   class Ffmpeg
     class << self
       attr_accessor :aliases, :bin, :ffprobe_bin
-      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command, :volume_detect_command
+      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command, :volume_detect_command, :crop_detect_command
     end
 
     self.aliases = {
@@ -32,6 +32,7 @@ module VideoConverter
     self.concat_command = "%{bin} -f concat %{inputs} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.volume_detect_command = "%{bin} -i %{input} -af volumedetect -c:v copy -f null - 2>&1"
+    self.crop_detect_command = "%{bin} -ss %{ss} -i %{input} -vframes %{vframes} -vf cropdetect=round=2 -c:a copy -f null - 2>&1"
 
     def self.split(input, output)
       output.options = { :format => 'segment', :map => 0, :codec => 'copy' }.merge(output.options)
@@ -59,42 +60,48 @@ module VideoConverter
       self.outputs = input.select_outputs(outputs)
 
       self.outputs.each do |output|
-        # autorotate
-        if output.type != 'playlist' && [nil, true].include?(output.rotate) && input.metadata[:rotate]
-          output.rotate = 360 - input.metadata[:rotate]
-        end
-        # autodeinterlace
-        output.options[:deinterlace] = input.metadata[:interlaced] if output.options[:deinterlace].nil?
         # volume
         output.options[:audio_filter] = "volume=#{volume(output.volume)}" if output.volume
-        # filter_complex
-        filter_complex = []
-        filter_complex << "crop=#{output.crop.shellescape}" if output.crop
-        if output.width || output.height
-          output.width = (output.height * aspect(input, output)).ceil / 2 * 2 if output.height && !output.width
-          output.height = (output.width / aspect(input, output)).ceil / 2 * 2 if output.width && !output.height
-          filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
-          if output.options[:aspect]
-            filter_complex << "setdar=#{output.options.delete(:aspect).to_s.shellescape}"
-          elsif input.video_stream[:dar_width] && input.video_stream[:dar_height]
-            filter_complex << "setdar=#{input.video_stream[:dar_width]}:#{input.video_stream[:dar_height]}"
+        unless output.options[:vn]
+          # autorotate
+          if output.type != 'playlist' && output.rotate == true
+            output.rotate = input.metadata[:rotate] ? 360 - input.metadata[:rotate] : nil
           end
-        end
-        if output.watermarks && (output.watermarks[:width] || output.watermarks[:height])
-          filter_complex = ["[0:v] #{filter_complex.join(',')} [main]"]
-          filter_complex << "[1:v] scale=#{scale(output.watermarks[:width], :w, output.width)}:#{scale(output.watermarks[:height], :h, output.height)} [overlay]"
-          filter_complex << "[main] [overlay] overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}"
-          if output.rotate
-            filter_complex[filter_complex.count-1] += ' [overlayed]'
-            filter_complex << '[overlayed] ' + rotate(output.rotate)
+          # autocrop
+          output.crop = input.crop_detect if output.type != 'playlist' && output.crop == true
+          # autodeinterlace
+          output.options[:deinterlace] = input.metadata[:interlaced] if output.options[:deinterlace].nil?
+          # filter_complex
+          filter_complex = []
+          filter_complex << "crop=#{output.crop.shellescape}" if output.crop
+          if output.width || output.height
+            output.width = (output.height * aspect(input, output)).ceil / 2 * 2 if output.height && !output.width
+            output.height = (output.width / aspect(input, output)).ceil / 2 * 2 if output.width && !output.height
+            filter_complex << "scale=#{scale(output.width, :w)}:#{scale(output.height, :h)}"
+            if output.options[:aspect]
+              filter_complex << "setdar=#{output.options.delete(:aspect).to_s.shellescape}"
+            elsif input.video_stream[:dar_width] && input.video_stream[:dar_height]
+              filter_complex << "setdar=#{aspect(input, output)}"
+            end
           end
-          output.options[:filter_complex] = "'#{filter_complex.join(';')}'"
+          if output.watermarks && (output.watermarks[:width] || output.watermarks[:height])
+            filter_complex = ["[0:v] #{filter_complex.join(',')} [main]"]
+            filter_complex << "[1:v] scale=#{scale(output.watermarks[:width], :w, output.width)}:#{scale(output.watermarks[:height], :h, output.height)} [overlay]"
+            filter_complex << "[main] [overlay] overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}"
+            if output.rotate
+              filter_complex[filter_complex.count-1] += ' [overlayed]'
+              filter_complex << '[overlayed] ' + rotate(output.rotate)
+            end
+            output.options[:filter_complex] = "'#{filter_complex.join(';')}'"
+          else
+            filter_complex << "overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}" if output.watermarks
+            filter_complex << rotate(output.rotate) if output.rotate
+            output.options[:filter_complex] = filter_complex.join(',') if filter_complex.any?
+          end
         else
-          filter_complex << "overlay=#{overlay(output.watermarks[:x], :w)}:#{overlay(output.watermarks[:y], :h)}" if output.watermarks
-          filter_complex << rotate(output.rotate) if output.rotate
-          output.options[:filter_complex] = filter_complex.join(',') if filter_complex.any?
+          output.options.delete(:deinterlace)
+          output.options.delete(:filter_complex)
         end
-
         output.options[:format] ||= File.extname(output.filename).delete('.')
         output.options[:format] = 'mpegts' if output.options[:format] == 'ts'
         output.options[:movflags] = '+faststart' if output.faststart || (output.faststart.nil? && %w(mov mp4).include?(output.options[:format].downcase))
@@ -229,8 +236,15 @@ module VideoConverter
           Float(aspect)
         end
       else
-        (input.video_stream[:dar_width] || input.video_stream[:width]).to_f / (input.video_stream[:dar_height] || input.video_stream[:height]).to_f
+        width_smaller_in = output.crop ? input.video_stream[:width].to_f / crop_parse(output.crop)[:width].to_f : 1
+        height_smaller_in = output.crop ? input.video_stream[:height].to_f / crop_parse(output.crop)[:height].to_f : 1
+        ((input.video_stream[:dar_width] || input.video_stream[:width]).to_f / width_smaller_in) /
+        ((input.video_stream[:dar_height] || input.video_stream[:height]).to_f / height_smaller_in)
       end
+    end
+
+    def crop_parse(crop)
+      crop.match(/^(?:w=)?(?<width>\d+):(?:h=)?(?<height>\d+)(?::(?:x=)?(?<h>\d+):(?:y=)?(?<y>\d+))?$/) or raise 'Unsupported crop format'
     end
   end
 end
