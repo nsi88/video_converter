@@ -98,7 +98,8 @@ module VideoConverter
         output.options[:format] ||= File.extname(output.filename).delete('.')
         output.options = { 
           :threads => 1, 
-          :video_codec => 'libx264', 
+          :video_codec => 'libx264',
+          :x264opts => 'no-scenecut=1',
           :audio_codec => 'libfaac', 
           :pixel_format => 'yuv420p' 
         }.merge(output.options) unless output.type == 'playlist'
