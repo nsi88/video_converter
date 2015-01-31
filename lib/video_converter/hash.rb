@@ -12,12 +12,14 @@ class Hash
     self.replace(self.deep_symbolize_keys)
   end
 
-  def deep_shellescape_values
+  def deep_shellescape_values(safe_keys = [])
     inject({}) do |options, (key, value)|
-      if value.is_a? Array
-        value = value.map { |v| v.is_a?(Hash) ? v.deep_shellescape_values : v.shellescape }
+      if safe_keys.include?(key)
+        value
+      elsif value.is_a? Array
+        value = value.map { |v| v.is_a?(Hash) ? v.deep_shellescape_values(safe_keys) : v.shellescape }
       elsif value.is_a? Hash
-        value = value.deep_shellescape_values 
+        value = value.deep_shellescape_values(safe_keys)
       elsif value.is_a?(String) && !value.empty?
         value = value.shellescape
       end
@@ -26,8 +28,8 @@ class Hash
     end
   end
 
-  def deep_shellescape_values!
-    self.replace(self.deep_shellescape_values)
+  def deep_shellescape_values!(safe_keys = [])
+    self.replace(self.deep_shellescape_values(safe_keys))
   end
 
   def deep_join(separator)

@@ -14,11 +14,10 @@ module VideoConverter
 
     attr_accessor :command
 
-    def initialize command, params = {}, safe_params = []
+    def initialize command, params = {}, safe_keys = []
       self.command = command.dup
       if params.any?
-        safe_params = Hash[*safe_params.map { |param| [param, params.delete(param)] }.flatten]
-        params = params.deep_shellescape_values.merge(safe_params)
+        params = params.deep_shellescape_values(safe_keys)
         self.command.gsub!(/%\{(\w+?)\}/) do
           value = params[$1.to_sym]
           if value.is_a?(Hash)

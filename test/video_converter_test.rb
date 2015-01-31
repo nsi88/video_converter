@@ -61,6 +61,23 @@ class VideoConverterTest < Test::Unit::TestCase
         assert_equal 240, m[:height].to_i
       end
     end
+
+    context 'with watermarks' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test (1).mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'res.mp4', :watermarks => {
+              :url => 'test/fixtures/logo.png', :x=>'-3%', :y=>'-3%', :height=>'3%'
+            }, :height => 240 }, 
+          ]
+        )).run
+      end
+
+      should 'be ok' do
+        assert File.exists?(@c.outputs.first.ffmpeg_output)
+      end
+    end
   end
 
   context 'segmentation' do

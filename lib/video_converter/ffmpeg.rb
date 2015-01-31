@@ -128,7 +128,7 @@ module VideoConverter
             # TODO compare by size
             res
           end.last
-          success &&= Command.new(self.class.first_pass_command, self.class.prepare_params(input, best_quality), [:filter_complex]).execute
+          success &&= Command.new(self.class.first_pass_command, self.class.prepare_params(input, best_quality), ['-filter_complex']).execute
         end
 
         qualities.each_with_index do |output, output_index|
@@ -143,7 +143,7 @@ module VideoConverter
           end
 
           # run ffmpeg
-          command = Command.new(command, self.class.prepare_params(input, output), [:filter_complex])
+          command = Command.new(command, self.class.prepare_params(input, output), ['-filter_complex'])
           if VideoConverter.paral
             threads << Thread.new { success &&= command.execute }
           else
@@ -196,7 +196,7 @@ module VideoConverter
       if size.to_s.end_with?('%')
         percent_of ? (percent_of * size.to_f / 100).to_i : "i#{wh}*#{size.to_f/100}"
       else
-        size || "trunc\\(o#{{:h => :w, :w => :h}[wh]}/a/2\\)*2"
+        size || "trunc\\(o#{{:h => 'w/', :w => 'h*'}[wh]}a/2\\)*2"
       end
     end
 
