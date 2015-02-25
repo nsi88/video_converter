@@ -66,6 +66,10 @@ module VideoConverter
       metadata[:video_streams].first
     end
 
+    def audio_stream
+      metadata[:audio_streams].first
+    end
+
     def mean_volume
       @mean_volume ||= Command.new(Ffmpeg.volume_detect_command, :bin => Ffmpeg.bin, :input => input).capture.match(/mean_volume:\s([-\d.]+)\sdB/).to_a[1]
     end

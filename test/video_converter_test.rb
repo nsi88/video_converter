@@ -84,15 +84,57 @@ class VideoConverterTest < Test::Unit::TestCase
         (@c = VideoConverter.new(
           :input => 'test/fixtures/test_crop.mp4', 
           :outputs => [
-            { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }, 
+            { :filename => 'audio.mp4', :ac => 1, :ar => 44100, :vn => true, :one_pass => true, :volume => '-21dB' },
+            { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }
           ]
         )).run
       end
-      
+
       should 'crop' do
-        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        m = VideoConverter.new(:input => @c.outputs.last.ffmpeg_output).inputs.first.video_stream
         assert_equal 406, m[:height].to_i
         assert_equal 720, m[:width].to_i
+      end
+
+      should 'consist no video in output' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert !m
+      end
+    end
+
+    context 'with sound only' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test (1).mp4',
+          :outputs => [
+            { :filename => 'audio.mp4', :ac => 1, :ar => 44100, :vn => true, :one_pass => true, :volume => '-21dB' }
+          ]
+        )).run
+      end
+
+      should 'consist no video' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert !m
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.audio_stream
+        assert m
+      end
+    end
+
+    context 'with video only' do
+      setup do
+        (@c = VideoConverter.new(
+          :input => 'test/fixtures/test_no_sound (1).mp4', 
+          :outputs => [
+            { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }
+          ]
+        )).run
+      end
+
+      should 'consist no video' do
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+        assert m
+        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.audio_stream
+        assert !m
       end
     end
   end
