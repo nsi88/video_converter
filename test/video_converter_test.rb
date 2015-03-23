@@ -176,17 +176,22 @@ class VideoConverterTest < Test::Unit::TestCase
       context 'to HLS AES' do
         setup do
           (@c = VideoConverter.new(
-            "input"=>["test/fixtures/test (1).mp4"], 
+            "input"=>["test/fixtures/test (1).mp4"],
             "output"=>[
-              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16}, 
-              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16},
+              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528, "drm"=>"hls", "encryption_key"=>'a'*16},
               {"filename"=>"playlist.m3u8", "type"=>"playlist", "streams"=>[
                 {"path"=>"sd1.m3u8", "bandwidth"=>804}, {"path"=>"sd2.m3u8", "bandwidth"=>1300}
-              ]}, 
-              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16}, 
-              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16}, 
+              ]},
+              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16},
+              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720, "drm"=>"hls", "encryption_key"=>'a'*16},
               {"filename"=>"hd_playlist.m3u8", "type"=>"playlist", "streams"=>[
                 {"path"=>"hd1.m3u8", "bandwidth"=>1598}, {"path"=>"hd2.m3u8", "bandwidth"=>3328}
+              ]},
+              {"video_bitrate"=>676, "filename"=>"sd3.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720, "drm"=>"hls"},
+              {"video_bitrate"=>800, "filename"=>"sd4.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720, "drm"=>"hls"},
+              {"filename"=>"sd3_playlist.m3u8", "type"=>"playlist", "streams"=>[
+                {"path"=>"sd3.m3u8", "bandwidth"=>804}, {"path"=>"sd4.m3u8", "bandwidth"=>3328}
               ]}
             ]
           )).run
@@ -201,6 +206,22 @@ class VideoConverterTest < Test::Unit::TestCase
             assert File.read(playlist).include?('EXT-X-KEY:METHOD=AES-128,URI="video.key"')
             assert File.exists?(File.join(@c.outputs.first.work_dir, 'video.key'))
           end
+        end
+
+        should 'be deencrypted successfully' do
+          # with encryption key
+          key =  `hexdump -e '16/1 "%02x"' #{File.join(@c.outputs.first.work_dir, 'video.key')}`
+          `openssl aes-128-cbc -d -in #{File.join(@c.outputs.first.work_dir, 'sd1/s-00000.ts')} -out #{File.join(@c.outputs.first.work_dir, '1.ts')} -K #{key} -iv 00000000000000000000000000000000`
+          meta = VideoConverter.new(:inputs => File.join(@c.outputs.first.work_dir, '1.ts')).inputs.first.metadata
+          assert_equal meta[:channels], 2
+          assert_equal meta[:video_streams].first[:video_codec], "h264"
+
+          #w/out encryption key
+          key =  `hexdump -e '16/1 "%02x"' #{File.join(@c.outputs.first.work_dir, 'sd3.m3u8.key')}`
+          `openssl aes-128-cbc -d -in #{File.join(@c.outputs.first.work_dir, 'sd3/s-00000.ts')} -out #{File.join(@c.outputs.first.work_dir, '2.ts')} -K #{key} -iv 00000000000000000000000000000000`
+          meta = VideoConverter.new(:inputs => File.join(@c.outputs.first.work_dir, '2.ts')).inputs.first.metadata
+          assert_equal meta[:channels], 2
+          assert_equal meta[:video_streams].first[:video_codec], "h264"
         end
       end
 

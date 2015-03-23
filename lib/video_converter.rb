@@ -1,6 +1,8 @@
 require "fileutils"
 require "net/http"
 require "shellwords"
+require 'securerandom'
+
 require "video_converter/array"
 require "video_converter/base"
 require "video_converter/command"
