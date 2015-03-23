@@ -35,7 +35,9 @@ module VideoConverter
         File.open(File.join(output.work_dir,'url.video.key'), 'wb') { |f| f.puts Net::HTTP.get(uri.host, uri.path) }
         output.encryption_key_url
       else
-        nil
+        @randomed_key = SecureRandom.hex(8)
+        File.open(File.join(output.work_dir, "#{output.filename}.key"), 'wb') { |f| f.write @randomed_key }
+        "#{output.filename}.key"
       end
     end
 
@@ -45,7 +47,7 @@ module VideoConverter
       elsif output.encryption_key_url
         File.join(output.work_dir, "url.video.key")
       else
-        nil
+        File.join(output.work_dir, "#{output.filename}.key")
       end
     end
 
