@@ -165,6 +165,22 @@ class VideoConverterTest < Test::Unit::TestCase
             assert File.exists?(File.join(@c.outputs.first.work_dir, 'video.key'))
           end
         end
+
+        should 'be deencrypted successfully' do
+          # with encryption key
+          key =  `hexdump -e '16/1 "%02x"' #{File.join(@c.outputs.first.work_dir, 'video.key')}`
+          `openssl aes-128-cbc -d -in #{File.join(@c.outputs.first.work_dir, 'sd1/s-00000.ts')} -out #{File.join(@c.outputs.first.work_dir, '1.ts')} -K #{key} -iv 00000000000000000000000000000000`
+          meta = VideoConverter.new(:inputs => File.join(@c.outputs.first.work_dir, '1.ts')).inputs.first.metadata
+          assert_equal meta[:channels], 2
+          assert_equal meta[:video_streams].first[:video_codec], "h264"
+
+          #w/out encryption key
+          key =  `hexdump -e '16/1 "%02x"' #{File.join(@c.outputs.first.work_dir, 'sd3.m3u8.key')}`
+          `openssl aes-128-cbc -d -in #{File.join(@c.outputs.first.work_dir, 'sd3/s-00000.ts')} -out #{File.join(@c.outputs.first.work_dir, '2.ts')} -K #{key} -iv 00000000000000000000000000000000`
+          meta = VideoConverter.new(:inputs => File.join(@c.outputs.first.work_dir, '2.ts')).inputs.first.metadata
+          assert_equal meta[:channels], 2
+          assert_equal meta[:video_streams].first[:video_codec], "h264"
+        end
       end
 
       context 'to HDS' do
