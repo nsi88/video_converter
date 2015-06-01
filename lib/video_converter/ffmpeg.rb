@@ -3,7 +3,7 @@
 module VideoConverter
   class Ffmpeg
     class << self
-      attr_accessor :aliases, :bin, :ffprobe_bin
+      attr_accessor :aliases, :defaults, :bin, :ffprobe_bin
       attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command, :volume_detect_command, :crop_detect_command
     end
 
@@ -19,7 +19,20 @@ module VideoConverter
       :format => 'f',
       :bitstream_format => 'bsf',
       :pixel_format => 'pix_fmt',
-      :audio_filter => 'af'
+      :audio_filter => 'af',
+      :profile => 'vprofile'
+    }
+    self.defaults = { 
+      :threads => 1,
+      :video_codec => 'libx264',
+      :audio_codec => 'libfaac',
+      :pixel_format => 'yuv420p',
+      :frame_rate => 24,
+      :preset => 'medium',
+      :profile => 'main',
+      :level => 31,
+      :ar => 44100,
+      :ac => 2
     }
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
@@ -105,12 +118,11 @@ module VideoConverter
         output.options[:format] ||= File.extname(output.filename).delete('.')
         output.options[:format] = 'mpegts' if output.options[:format] == 'ts'
         output.options[:movflags] = '+faststart' if output.faststart || (output.faststart.nil? && %w(mov mp4).include?(output.options[:format].downcase))
-        output.options = { 
-          :threads => 1, 
-          :video_codec => 'libx264', 
-          :audio_codec => 'libfaac', 
-          :pixel_format => 'yuv420p' 
-        }.merge(output.options) unless output.type == 'playlist'
+        unless output.type == 'playlist'
+          output.options = self.class.defaults.merge(output.options)
+          output.options[:keyint_min] ||= output.options[:frame_rate]
+          output.options[:keyframe_interval] = output.options[:keyint_min] * Output.keyframe_interval_in_seconds
+        end
       end
     end
 
@@ -125,8 +137,6 @@ module VideoConverter
         if !one_pass?(qualities) && common_first_pass?(qualities)
           qualities.each do |output| 
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}.log")
-            output.options[:keyint_min] = 25
-            output.options[:keyframe_interval] = 100
           end
           best_quality = qualities.sort do |q1, q2|
             res = q1.options[:video_bitrate].to_i <=> q2.options[:video_bitrate].to_i
@@ -146,6 +156,7 @@ module VideoConverter
           else
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
             output.options[:force_key_frames] = input.metadata[:video_start_time].step(input.metadata[:duration_in_ms] / 1000.0, Output.keyframe_interval_in_seconds).map(&:floor).join(',')
+            output.options[:keyint_min], output.options[:keyframe_interval] = output.options[:keyframe_interval], nil
             Command.chain(self.class.first_pass_command, self.class.second_pass_command)
           end
 

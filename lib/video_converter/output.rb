@@ -7,6 +7,7 @@ module VideoConverter
     end
     self.work_dir = '/tmp'
     self.log = 'converter.log'
+    # XXX move default options to one place
     self.keyframe_interval_in_seconds = 4
 
     attr_accessor :chunks_dir, :crop, :drm, :faststart, :ffmpeg_output, :filename, :group, :height, :log, :mkdir_mode, :no_fragments, :one_pass, :options, :path, :rotate, :streams, :thumbnails, :type, :uid, :volume, :watermarks, :width, :work_dir, :encryption_key, :encryption_key_url
