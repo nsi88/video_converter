@@ -74,7 +74,7 @@ module VideoConverter
       @mean_volume ||= Command.new(Ffmpeg.volume_detect_command, :bin => Ffmpeg.bin, :input => input).capture.match(/mean_volume:\s([-\d.]+)\sdB/).to_a[1]
     end
 
-    def crop_detect(samples = 5)
+    def crop_detect(samples = 5, max_crop = nil)
       (@crop_detect ||= samples.times.map do |sample|
         (metadata[:duration_in_ms] / (samples + 1) / 1000.0 * (sample + 1)).round
       end.uniq.map do |ss|
@@ -85,6 +85,7 @@ module VideoConverter
         res = m1[:w].to_i <=> m2[:w].to_i if res == 0
         res
       end || {})[:crop]
+      max_crop.nil? ? @crop_detect[:crop] : @crop_detect = max_crop(@crop_detect[:crop], max_crop)
     end
 
     def select_outputs(outputs)
@@ -122,10 +123,38 @@ module VideoConverter
     def is_http?
       !!input.match(/^http:\/\//)
     end
-    
+
     def is_local?
       File.file?(input)
     end
 
+    def max_crop(window, max_crop)
+      # collecting all existed data
+      input_x = metadata[:video_streams].first[:width].to_i
+      input_y = metadata[:video_streams].first[:height].to_i
+      w, h, x, y = window.split(':').map(&:to_i)
+      max_crop = max_crop.gsub!('%','').to_i
+
+      # checking if we could crop with existing params
+      cropping_area_x = input_x - w
+      cropping_area_y = input_y - h
+      cropping_percent_x = ((cropping_area_x / input_x.to_f)*100).round
+      cropping_percent_y = ((cropping_area_y / input_y.to_f)*100).round
+      return window if (cropping_percent_y < max_crop) && (cropping_percent_x < max_crop)
+
+      # calculation new crop params
+      if cropping_percent_x > max_crop
+        max_crop_x = ((input_x * max_crop) / 100.0).round
+        offset_x   = (max_crop_x / 2).round
+        window_w   = input_x - max_crop_x
+      end
+      if cropping_percent_y > max_crop
+        max_crop_y = ((input_y * max_crop) / 100.0).round
+        max_crop_y = y if max_crop_y > y
+        offset_y   = (max_crop_y / 2).round
+        window_h   = input_y - max_crop_y
+      end
+      return "#{window_w || w}:#{window_h || h}:#{offset_x || x}:#{offset_y || y}"
+    end
   end
 end

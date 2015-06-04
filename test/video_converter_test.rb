@@ -80,25 +80,38 @@ class VideoConverterTest < Test::Unit::TestCase
     end
 
     context 'with autocrop' do
-      setup do
-        (@c = VideoConverter.new(
-          :input => 'test/fixtures/test_crop.mp4', 
-          :outputs => [
-            { :filename => 'audio.mp4', :ac => 1, :ar => 44100, :vn => true, :one_pass => true, :volume => '-21dB' },
-            { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }
-          ]
-        )).run
+      context 'with true param' do
+        setup do
+          (@c = VideoConverter.new(
+            :input => 'test/fixtures/test_crop.mp4', 
+            :outputs => [
+              { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }, 
+            ]
+          )).run
+        end
+
+        should 'crop' do
+          m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+          assert_equal 406, m[:height].to_i
+          assert_equal 720, m[:width].to_i
+        end
       end
 
-      should 'crop' do
-        m = VideoConverter.new(:input => @c.outputs.last.ffmpeg_output).inputs.first.video_stream
-        assert_equal 406, m[:height].to_i
-        assert_equal 720, m[:width].to_i
-      end
+      context 'with max crop param' do
+        setup do
+          (@c = VideoConverter.new(
+            :input => 'test/fixtures/test_crop.mp4', 
+            :outputs => [
+              { :video_bitrate => 300, :filename => 'res.mp4', :crop => { :max => '15%'} },
+            ]
+          )).run
+        end
 
-      should 'consist no video in output' do
-        m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
-        assert !m
+        should 'crop' do
+          m = VideoConverter.new(:input => @c.outputs.first.ffmpeg_output).inputs.first.video_stream
+          assert_equal 492, m[:height].to_i
+          assert_equal 720, m[:width].to_i
+        end
       end
     end
 

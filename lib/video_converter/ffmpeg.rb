@@ -80,8 +80,17 @@ module VideoConverter
           if output.type != 'playlist' && output.rotate == true
             output.rotate = input.metadata[:rotate] ? 360 - input.metadata[:rotate] : nil
           end
+
           # autocrop
-          output.crop = input.crop_detect if output.type != 'playlist' && output.crop == true
+          # may be TrueClass, String or Hash
+          if output.crop && output.type != 'playlist'
+            if output.crop == true
+              output.crop = input.crop_detect
+            elsif output.crop.is_a?(Hash)
+              output.crop = input.crop_detect(5, output.crop[:max])
+            end
+          end
+
           # autodeinterlace
           output.options[:deinterlace] = input.metadata[:interlaced] if output.options[:deinterlace].nil?
           # filter_complex
