@@ -3,14 +3,10 @@
 module VideoConverter
   class Command
     class << self
-      attr_accessor :dry_run, :verbose
+      attr_accessor :dry_run, :verbose, :nice, :ionice
     end
     self.dry_run = false
     self.verbose = true
-
-    def self.chain(*commands)
-      commands.map { |c| "(#{c})" }.join(' && ')
-    end
 
     attr_accessor :command
 
@@ -28,6 +24,8 @@ module VideoConverter
         end
       end
       raise ArgumentError.new("Command is not parsed '#{self.command}'") if self.command.match(/%{[\w\-.]+}/)
+      self.command = "nice -n #{self.class.nice} #{self.command}" if self.class.nice
+      self.command = "ionice -c 2 -n #{self.class.ionice} #{self.command}" if self.class.ionice
     end
 
     def execute params = {}
@@ -46,6 +44,11 @@ module VideoConverter
 
     def to_s
       command
+    end
+    
+    def append(*commands)
+      self.command = commands.unshift(command).map { |c| "(#{c})" }.join(' && ')
+      self
     end
   end
 end

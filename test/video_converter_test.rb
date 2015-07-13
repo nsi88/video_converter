@@ -228,6 +228,8 @@ class VideoConverterTest < Test::Unit::TestCase
       context 'to HDS' do
         setup do
           VideoConverter.paral = true
+          VideoConverter::Command.nice = 10
+          VideoConverter::Command.ionice = 6
           (@c = VideoConverter.new(
             "input"=>["test/fixtures/test (1).mp4"], 
             "output"=>[
@@ -254,6 +256,11 @@ class VideoConverterTest < Test::Unit::TestCase
             (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).capture),
             (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).capture)
           )
+        end
+
+        teardown do
+          VideoConverter::Command.nice = nil
+          VideoConverter::Command.ionice = nil
         end
       end
     end

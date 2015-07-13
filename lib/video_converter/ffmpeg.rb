@@ -150,18 +150,19 @@ module VideoConverter
 
         qualities.each_with_index do |output, output_index|
           command = if one_pass?(qualities)
-            self.class.one_pass_command
+            Command.new(self.class.one_pass_command, self.class.prepare_params(input, output), ['-filter_complex'])
           elsif common_first_pass?(qualities)
-            self.class.second_pass_command
+            Command.new(self.class.second_pass_command, self.class.prepare_params(input, output), ['-filter_complex'])
           else
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
             output.options[:force_key_frames] = input.metadata[:video_start_time].step(input.metadata[:duration_in_ms] / 1000.0, Output.keyframe_interval_in_seconds).map(&:floor).join(',')
             output.options[:keyint_min], output.options[:keyframe_interval] = output.options[:keyframe_interval], nil
-            Command.chain(self.class.first_pass_command, self.class.second_pass_command)
+            Command.new(self.class.first_pass_command, self.class.prepare_params(input, output), ['-filter_complex']).append(
+              Command.new(self.class.second_pass_command, self.class.prepare_params(input, output), ['-filter_complex'])
+            )
           end
 
           # run ffmpeg
-          command = Command.new(command, self.class.prepare_params(input, output), ['-filter_complex'])
           if VideoConverter.paral
             threads << Thread.new { success &&= command.execute }
           else
