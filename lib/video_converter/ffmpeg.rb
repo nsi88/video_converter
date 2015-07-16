@@ -4,7 +4,7 @@ module VideoConverter
   class Ffmpeg
     class << self
       attr_accessor :aliases, :defaults, :bin, :ffprobe_bin
-      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :keyframes_command, :split_command, :concat_command, :mux_command, :volume_detect_command, :crop_detect_command
+      attr_accessor :one_pass_command, :first_pass_command, :second_pass_command, :split_command, :concat_command, :mux_command, :volume_detect_command, :crop_detect_command, :key_frames_command
     end
 
     self.aliases = {
@@ -22,12 +22,12 @@ module VideoConverter
       :audio_filter => 'af',
       :profile => 'vprofile'
     }
-    self.defaults = { 
+    self.defaults = {
       :threads => 1,
       :video_codec => 'libx264',
       :audio_codec => 'libfaac',
       :pixel_format => 'yuv420p',
-      :frame_rate => 24,
+      :frame_rate => 25,
       :preset => 'medium',
       :profile => 'main',
       :level => 31,
@@ -36,22 +36,22 @@ module VideoConverter
     }
     self.bin = '/usr/local/bin/ffmpeg'
     self.ffprobe_bin = '/usr/local/bin/ffprobe'
-    
+
     self.one_pass_command = '%{bin} %{inputs} -y %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.first_pass_command = '%{bin} %{inputs} -y -pass 1 -an %{options} /dev/null 1>>%{log} 2>&1 || exit 1'
     self.second_pass_command = '%{bin} %{inputs} -y -pass 2 %{options} %{output} 1>>%{log} 2>&1 || exit 1'
-    self.keyframes_command = '%{ffprobe_bin} -show_frames -select_streams v:0 -print_format csv %{inputs} | grep frame,video,1 | cut -d\',\' -f5 | tr "\n" "," | sed \'s/,$//\''
     self.split_command = '%{bin} -fflags +genpts %{inputs} %{options} %{output} 1>>%{log} 2>&1 || exit 1'
     self.concat_command = "%{bin} -f concat %{inputs} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.volume_detect_command = "%{bin} -i %{input} -af volumedetect -c:v copy -f null - 2>&1"
     self.crop_detect_command = "%{bin} -ss %{ss} -i %{input} -vframes %{vframes} -vf cropdetect=round=2 -c:a copy -f null - 2>&1"
+    self.key_frames_command = "%{bin} -i %{input} -an -vf \"select=eq(pict_type\\,PICT_TYPE_I),showinfo\" -f null - 2>&1"
 
     def self.split(input, output)
       output.options = { :format => 'segment', :map => 0, :codec => 'copy' }.merge(output.options)
       Command.new(split_command, prepare_params(input, output)).execute
     end
-    
+
     def self.concat(inputs, output, method = nil)
       method = %w(ts mpg mpeg).include?(File.extname(inputs.first.to_s).delete('.')) ? :protocol : :muxer unless method
       output.options = { :codec => 'copy' }.merge(output.options)
@@ -65,11 +65,11 @@ module VideoConverter
         :maps => { '-map' => inputs.each_with_index.map { |_,i| "#{i}:0" }.join(' ') }
       })).execute
     end
-    
+
     attr_accessor :input, :outputs
 
     def initialize input, outputs
-      self.input = input      
+      self.input = input
       self.outputs = input.select_outputs(outputs)
 
       self.outputs.each do |output|
@@ -135,7 +135,7 @@ module VideoConverter
 
         # common first pass
         if !one_pass?(qualities) && common_first_pass?(qualities)
-          qualities.each do |output| 
+          qualities.each do |output|
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}.log")
           end
           best_quality = qualities.sort do |q1, q2|
@@ -156,7 +156,8 @@ module VideoConverter
           else
             output.options[:passlogfile] = File.join(output.work_dir, "group#{group_index}_#{output_index}.log")
             output.options[:force_key_frames] = input.metadata[:video_start_time].step(input.metadata[:duration_in_ms] / 1000.0, Output.keyframe_interval_in_seconds).map(&:floor).join(',')
-            output.options[:keyint_min], output.options[:keyframe_interval] = output.options[:keyframe_interval], nil
+            output.options[:sc_threshold] = 0
+            output.options[:keyint_min] = output.options[:keyframe_interval] = nil
             Command.new(self.class.first_pass_command, self.class.prepare_params(input, output), ['-filter_complex']).append(
               Command.new(self.class.second_pass_command, self.class.prepare_params(input, output), ['-filter_complex'])
             )
@@ -174,7 +175,7 @@ module VideoConverter
       success
     end
 
-    private 
+    private
 
     def self.concat_muxer(inputs, output)
       list = File.join(output.work_dir, 'list.txt')
@@ -199,7 +200,7 @@ module VideoConverter
     end
 
     def self.prepare_params input, output
-      
+
       {
         :bin => bin,
         :inputs => { '-i' => output.watermarks ? [input.to_s, output.watermarks[:url]] : input.to_s },

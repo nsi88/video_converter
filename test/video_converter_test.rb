@@ -5,10 +5,10 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with thumbnails' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test (1).mp4', 
+          :input => 'test/fixtures/test (1).mp4',
           :outputs => [
-            { :video_bitrate => 300, :filename => 'q1.mp4' }, 
-            { :video_bitrate => 400, :filename => 'q2.mp4', :thumbnails => { 
+            { :video_bitrate => 300, :filename => 'q1.mp4' },
+            { :video_bitrate => 400, :filename => 'q2.mp4', :thumbnails => {
               :number => 2, :offset_start => '50%', :offset_end => '20%', :presets => { :norm => '-normalize' }, :exact => true
             } },
             { :video_bitrate => 500, :filename => 'q3.mp4' }
@@ -29,9 +29,9 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with aspect' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test (1).mp4', 
+          :input => 'test/fixtures/test (1).mp4',
           :outputs => [
-            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3' }, 
+            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3' },
           ]
         )).run
       end
@@ -46,9 +46,9 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with aspect and resize' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test (1).mp4', 
+          :input => 'test/fixtures/test (1).mp4',
           :outputs => [
-            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3', :height => 240 }, 
+            { :video_bitrate => 300, :filename => 'res.mp4', :aspect => '4:3', :height => 240 },
           ]
         )).run
       end
@@ -65,11 +65,11 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with watermarks' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test (1).mp4', 
+          :input => 'test/fixtures/test (1).mp4',
           :outputs => [
             { :video_bitrate => 300, :filename => 'res.mp4', :watermarks => {
               :url => 'test/fixtures/logo.png', :x=>'-3%', :y=>'-3%', :height=>'3%'
-            }, :height => 240 }, 
+            }, :height => 240 },
           ]
         )).run
       end
@@ -82,7 +82,7 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with autocrop' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test_crop.mp4', 
+          :input => 'test/fixtures/test_crop.mp4',
           :outputs => [
             { :filename => 'audio.mp4', :ac => 1, :ar => 44100, :vn => true, :one_pass => true, :volume => '-21dB' },
             { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }
@@ -123,7 +123,7 @@ class VideoConverterTest < Test::Unit::TestCase
     context 'with video only' do
       setup do
         (@c = VideoConverter.new(
-          :input => 'test/fixtures/test_no_sound (1).mp4', 
+          :input => 'test/fixtures/test_no_sound (1).mp4',
           :outputs => [
             { :video_bitrate => 300, :filename => 'res.mp4', :crop => true }
           ]
@@ -145,15 +145,15 @@ class VideoConverterTest < Test::Unit::TestCase
         setup do
           VideoConverter.paral = true
           (@c = VideoConverter.new(
-            "input"=>["test/fixtures/test (1).mp4"], 
+            "input"=>["test/fixtures/test (1).mp4"],
             "output"=>[
-              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
-              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528}, 
+              {"video_bitrate"=>676, "filename"=>"sd1.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528},
+              {"video_bitrate"=>1172, "filename"=>"sd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>528},
               {"filename"=>"playlist.m3u8", "type"=>"playlist", "streams"=>[
                 {"path"=>"sd1.m3u8", "bandwidth"=>804}, {"path"=>"sd2.m3u8", "bandwidth"=>1300}
-              ]}, 
-              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720}, 
-              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720}, 
+              ]},
+              {"video_bitrate"=>1550, "filename"=>"hd1.m3u8", "type"=>"segmented", "audio_bitrate"=>48, "height"=>720},
+              {"video_bitrate"=>3200, "filename"=>"hd2.m3u8", "type"=>"segmented", "audio_bitrate"=>128, "height"=>720},
               {"filename"=>"hd_playlist.m3u8", "type"=>"playlist", "streams"=>[
                 {"path"=>"hd1.m3u8", "bandwidth"=>1598}, {"path"=>"hd2.m3u8", "bandwidth"=>3328}
               ]}
@@ -164,10 +164,10 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00000.ts', 's-00001.ts', 's-00002.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # TODO verify that chunks have different quality (weight)
             # should create playlists
-            assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
+            assert File.exists?(File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
             # TODO verify that playlist is valid (contain all chunks and modifiers)
           end
         end
@@ -200,7 +200,7 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00000.ts', 's-00001.ts', 's-00002.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # should create playlists
             assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
             assert File.read(playlist).include?('EXT-X-KEY:METHOD=AES-128,URI="video.key"')
@@ -231,15 +231,15 @@ class VideoConverterTest < Test::Unit::TestCase
           VideoConverter::Command.nice = 10
           VideoConverter::Command.ionice = 6
           (@c = VideoConverter.new(
-            "input"=>["test/fixtures/test (1).mp4"], 
+            "input"=>["test/fixtures/test (1).mp4"],
             "output"=>[
-              {"video_bitrate"=>676, "filename"=>"sd1.mp4", "audio_bitrate"=>128, "height"=>360}, 
-              {"video_bitrate"=>1172, "filename"=>"sd2.mp4", "audio_bitrate"=>128, "height"=>528}, 
+              {"video_bitrate"=>676, "filename"=>"sd1.mp4", "audio_bitrate"=>128, "height"=>360},
+              {"video_bitrate"=>1172, "filename"=>"sd2.mp4", "audio_bitrate"=>128, "height"=>528},
               {"filename"=>"playlist.f4m", "type"=>"playlist", "streams"=>[
                 {"path"=>"sd1.mp4", "bandwidth"=>804}, {"path"=>"sd2.mp4", "bandwidth"=>1300}
-              ]}, 
-              {"video_bitrate"=>1550, "filename"=>"hd1.mp4", "audio_bitrate"=>48, "height"=>720}, 
-              {"video_bitrate"=>3200, "filename"=>"hd2.mp4", "audio_bitrate"=>128, "height"=>720}, 
+              ]},
+              {"video_bitrate"=>1550, "filename"=>"hd1.mp4", "audio_bitrate"=>48, "height"=>720},
+              {"video_bitrate"=>3200, "filename"=>"hd2.mp4", "audio_bitrate"=>128, "height"=>720},
               {"filename"=>"hd_playlist.f4m", "type"=>"playlist", "streams"=>[
                 {"path"=>"hd1.mp4", "bandwidth"=>1598}, {"path"=>"hd2.mp4", "bandwidth"=>3328}
               ]}
@@ -251,10 +251,9 @@ class VideoConverterTest < Test::Unit::TestCase
           %w(sd1.mp4 sd2.mp4 playlist.f4m hd1.mp4 hd2.mp4 hd_playlist.f4m).each do |filename|
             assert File.exists?(File.join(@c.outputs.first.work_dir, "#{filename}"))
           end
-
           assert_equal(
-            (k1 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).capture),
-            (k2 = VideoConverter::Command.new(VideoConverter::Ffmpeg.keyframes_command, :ffprobe_bin => VideoConverter::Ffmpeg.ffprobe_bin, :inputs => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).capture)
+            VideoConverter.new(:input => File.join(@c.outputs.first.work_dir, 'sd1.mp4')).inputs.first.key_frames,
+            VideoConverter.new(:input => File.join(@c.outputs.first.work_dir, 'sd2.mp4')).inputs.first.key_frames
           )
         end
 
@@ -270,10 +269,10 @@ class VideoConverterTest < Test::Unit::TestCase
         VideoConverter.paral = false
         FileUtils.cp("test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4")
         (@c = VideoConverter.new(
-          :input => ["test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4"], 
+          :input => ["test/fixtures/test (1).mp4", "test/fixtures/test (2).mp4"],
           :output => [
-            {:filename=>"q1.m3u8", :path=>"test/fixtures/test (1).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"}, 
-            {:filename=>"q2.m3u8", :path=>"test/fixtures/test (2).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"}, 
+            {:filename=>"q1.m3u8", :path=>"test/fixtures/test (1).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"},
+            {:filename=>"q2.m3u8", :path=>"test/fixtures/test (2).mp4", :type=>"segmented", :one_pass=>true, :video_codec=>"copy", :audio_codec=>"copy", 'bsf:v'=>"h264_mp4toannexb"},
             {:filename=>"playlist.m3u8", :type=>"playlist", :streams=>[
               {:path=>"q1.m3u8", :bandwidth=>464}, {:path=>"q2.m3u8", :bandwidth=>928}
             ]}
@@ -288,7 +287,7 @@ class VideoConverterTest < Test::Unit::TestCase
           assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
           # TODO verify that chunks have the same quality (weight)
           # should create playlists
-          assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
+          assert File.exists?(File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
           # TODO verify that playlist is valid (contain all chunks and modifiers)
         end
       end

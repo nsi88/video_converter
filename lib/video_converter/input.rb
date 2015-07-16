@@ -87,6 +87,14 @@ module VideoConverter
       end || {})[:crop]
     end
 
+    def key_frames
+      @key_frames ||= Command.new(Ffmpeg.key_frames_command, :bin => Ffmpeg.bin, :input => input).capture.split("\n").map do |l|
+        if m = l.match(/pts:\s*(\d+)\s*pts_time:\s*(\d+(?:\.\d+)?)/)
+          { :pts => m[1].to_i, :pts_time => m[2].to_f }
+        end
+      end.compact
+    end
+
     def select_outputs(outputs)
       outputs.select { |output| !output.path || output.path == input }
     end
@@ -95,11 +103,11 @@ module VideoConverter
       # qualities with the same group param are one group
       groups = Hash.new([])
       outputs.each { |output| groups[output.group] += [output] if output.group.present? }
-      groups = groups.values 
+      groups = groups.values
 
       # qualities of one playlist are one group
       groups += outputs.select { |output| output.type == 'playlist' }.map { |playlist| playlist.output_group(outputs) }
-      
+
       # other outputs are separate groups
       (outputs - groups.flatten).each { |output| groups << [output] }
       groups
@@ -122,7 +130,7 @@ module VideoConverter
     def is_http?
       !!input.match(/^http:\/\//)
     end
-    
+
     def is_local?
       File.file?(input)
     end
