@@ -45,7 +45,7 @@ module VideoConverter
     self.mux_command = "%{bin} %{inputs} %{maps} %{options} %{output} 1>>%{log} 2>&1 || exit 1"
     self.volume_detect_command = "%{bin} -i %{input} -af volumedetect -c:v copy -f null - 2>&1"
     self.crop_detect_command = "%{bin} -ss %{ss} -i %{input} -vframes %{vframes} -vf cropdetect=round=2 -c:a copy -f null - 2>&1"
-    self.key_frames_command = "%{bin} -i %{input} -an -vf \"select=eq(pict_type\\,PICT_TYPE_I),showinfo\" -f null - 2>&1"
+    self.key_frames_command = "%{bin} -i %{input} -an -vf \"select=key,showinfo\" -copyts -f null - 2>&1"
 
     def self.split(input, output)
       output.options = { :format => 'segment', :map => 0, :codec => 'copy' }.merge(output.options)

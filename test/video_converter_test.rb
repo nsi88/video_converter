@@ -164,7 +164,7 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00000.ts', 's-00001.ts', 's-00002.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # TODO verify that chunks have different quality (weight)
             # should create playlists
             assert File.exists?(File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
@@ -200,7 +200,7 @@ class VideoConverterTest < Test::Unit::TestCase
         should 'generate hls' do
           %w(sd1 sd2 hd1 hd2).each do |quality|
             # should create chunks
-            assert_equal ['s-00000.ts', 's-00001.ts', 's-00002.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
+            assert_equal ['s-00000.ts', 's-00001.ts'], Dir.entries(File.join(@c.outputs.first.work_dir, quality)).delete_if { |e| ['.', '..'].include?(e) }.sort
             # should create playlists
             assert File.exists?(playlist = File.join(@c.outputs.first.work_dir, "#{quality}.m3u8"))
             assert File.read(playlist).include?('EXT-X-KEY:METHOD=AES-128,URI="video.key"')
